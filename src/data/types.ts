@@ -1,42 +1,23 @@
-export interface Livestock {
+export interface Product {
   id: string;
   title: string;
-  breed: string;
   price: number;
   originalPrice?: number;
   images: string[];
   videoUrl?: string;
 
-  // Animal details
-  age: string;
-  weight: string;
-  gender: 'male' | 'female';
-  color: string;
+  // Product details
+  brand?: string;
+  sku?: string;
+  stock: number;
+  soldCount: number;
 
-  // Parent lineage / Ата-эне тектүүлүгү
-  lineage?: {
-    father?: {
-      name: string;
-      breed: string;
-      photo?: string;
-      achievements?: string;
-    };
-    mother?: {
-      name: string;
-      breed: string;
-      photo?: string;
-      achievements?: string;
-    };
-    pedigreeInfo?: string;
-  };
+  // Variations
+  colors?: string[];
+  sizes?: string[];
 
-  // Document photos / Документ сүрөттөрү
-  documentPhotos?: string[];
-
-  // Location & Seller
-  location: string;
-  region: string;
-  seller: Seller;
+  // Shop info
+  shop: Shop;
 
   // Stats
   views: number;
@@ -46,47 +27,52 @@ export interface Livestock {
 
   // Features
   badges: Badge[];
-  isVerified?: boolean;
-  hasDocuments?: boolean;
-  hasDelivery?: boolean;
-  isNegotiable?: boolean;
-  isUrgent?: boolean;
-  isPremium?: boolean;
+  isGroupBuy?: boolean;
+  groupBuyPrice?: number;
+  groupBuyMinPeople?: number;
+  hasFreeship?: boolean;
+  isFlashSale?: boolean;
+  flashSaleEndsAt?: string;
 
   // Category
   categoryId: string;
 
   // Description
   description?: string;
+  specifications?: { key: string; value: string }[];
   features?: string[];
 
   // Dates
   createdAt: string;
 }
 
-export interface Seller {
+export interface Shop {
   id: string;
   name: string;
-  avatar: string;
-  phone: string;
+  logo: string;
   rating: number;
   salesCount: number;
+  followersCount: number;
+  productsCount: number;
   isVerified: boolean;
+  isOfficialStore?: boolean;
+  responseRate: number;
+  responseTime: string;
   location: string;
-  memberSince: string;
+  createdAt: string;
 }
 
 export interface Badge {
   text: string;
-  type: 'hot' | 'new' | 'sale' | 'premium' | 'verified' | 'top' | 'urgent';
+  type: 'hot' | 'new' | 'sale' | 'premium' | 'verified' | 'top' | 'groupbuy' | 'freeship' | 'flash';
 }
 
 export interface Video {
   id: string;
   videoUrl: string;
   thumbnailUrl: string;
-  livestockId: string;
-  livestock: Livestock;
+  productId: string;
+  product: Product;
   likes: number;
   comments: number;
   shares: number;
@@ -101,7 +87,25 @@ export interface Category {
   color: string;
   image?: string;
   count?: number;
+  subcategories?: Category[];
+}
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
+}
+
+export interface GroupBuy {
+  id: string;
+  product: Product;
+  currentPeople: number;
+  requiredPeople: number;
+  endsAt: string;
+  participants: { avatar: string; name: string }[];
 }
 
 // Legacy alias for compatibility
-export type Product = Livestock;
+export type Livestock = Product;
+export type Seller = Shop;

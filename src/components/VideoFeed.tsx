@@ -36,7 +36,7 @@ export default function VideoFeed({ videos, onClose, initialIndex = 0 }: VideoFe
     e.preventDefault();
     e.stopPropagation();
     onClose();
-    router.push(`/product/${currentVideo.livestockId}`);
+    router.push(`/product/${currentVideo.productId}`);
   };
 
   // Auto-play current video
@@ -375,39 +375,46 @@ export default function VideoFeed({ videos, onClose, initialIndex = 0 }: VideoFe
         <div className="flex gap-3">
           <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
             <Image
-              src={currentVideo.livestock.images[0]}
-              alt={currentVideo.livestock.title}
+              src={currentVideo.product.images[0]}
+              alt={currentVideo.product.title}
               fill
               className="object-cover"
             />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-medium text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full">
-                {currentVideo.livestock.breed}
-              </span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                currentVideo.livestock.gender === 'male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'
-              }`}>
-                {currentVideo.livestock.gender === 'male' ? '♂' : '♀'}
-              </span>
+              {currentVideo.product.brand && (
+                <span className="text-[10px] font-medium text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full">
+                  {currentVideo.product.brand}
+                </span>
+              )}
+              {currentVideo.product.isGroupBuy && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                  Группа
+                </span>
+              )}
+              {currentVideo.product.hasFreeship && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">
+                  Акысыз
+                </span>
+              )}
             </div>
             <h4 className="text-sm font-medium text-gray-800 line-clamp-1">
-              {currentVideo.livestock.title}
+              {currentVideo.product.title}
             </h4>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-lg font-bold text-red-600">
-                {formatPrice(currentVideo.livestock.price)} с
+                {formatPrice(currentVideo.product.price)} с
               </span>
-              {currentVideo.livestock.originalPrice && (
+              {currentVideo.product.originalPrice && (
                 <span className="text-xs text-gray-400 line-through">
-                  {formatPrice(currentVideo.livestock.originalPrice)}
+                  {formatPrice(currentVideo.product.originalPrice)}
                 </span>
               )}
             </div>
             <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-              <span>📍</span>
-              {currentVideo.livestock.location}
+              <span>🏪</span>
+              {currentVideo.product.shop.name}
             </div>
           </div>
           <div className="self-center flex flex-col items-center">

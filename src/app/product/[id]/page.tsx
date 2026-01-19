@@ -7,7 +7,7 @@ import Image from 'next/image';
 import ProductGallery from '@/components/ProductGallery';
 import ProductCard from '@/components/ProductCard';
 import VideoFeed from '@/components/VideoFeed';
-import { livestock, videos } from '@/data/products';
+import { products, videos } from '@/data/products';
 import { useCart } from '@/context/CartContext';
 
 export default function ProductDetailPage() {
@@ -15,10 +15,12 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const { addToCart } = useCart();
   const [showVideoFeed, setShowVideoFeed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'description' | 'seller'>('description');
+  const [activeTab, setActiveTab] = useState<'description' | 'shop'>('description');
   const [isLiked, setIsLiked] = useState(false);
-  const [showPhone, setShowPhone] = useState(false);
   const [showMiniVideo, setShowMiniVideo] = useState(true);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const miniVideoRef = useRef<HTMLVideoElement>(null);
 
   // Draggable mini video position
@@ -27,43 +29,34 @@ export default function ProductDetailPage() {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const positionStartRef = useRef({ x: 0, y: 0 });
 
-  // Handle drag start
   const handleDragStart = useCallback((clientX: number, clientY: number) => {
     setIsDragging(true);
     dragStartRef.current = { x: clientX, y: clientY };
     positionStartRef.current = { ...videoPosition };
   }, [videoPosition]);
 
-  // Handle drag move
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     if (!isDragging) return;
-
     const deltaX = clientX - dragStartRef.current.x;
     const deltaY = clientY - dragStartRef.current.y;
-
     const newX = Math.max(8, Math.min(window.innerWidth - 108, positionStartRef.current.x + deltaX));
     const newY = Math.max(60, Math.min(window.innerHeight - 180, positionStartRef.current.y + deltaY));
-
     setVideoPosition({ x: newX, y: newY });
   }, [isDragging]);
 
-  // Handle drag end
   const handleDragEnd = useCallback(() => {
     setIsDragging(false);
   }, []);
 
-  // Mouse events
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     handleDragStart(e.clientX, e.clientY);
   };
 
-  // Touch events
   const handleTouchStart = (e: React.TouchEvent) => {
     handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
   };
 
-  // Global mouse/touch move and end
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => handleDragMove(e.clientX, e.clientY);
     const handleTouchMove = (e: TouchEvent) => handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
@@ -85,9 +78,8 @@ export default function ProductDetailPage() {
   }, [isDragging, handleDragMove, handleDragEnd]);
 
   const productId = params.id as string;
-  const product = livestock.find(p => p.id === productId);
+  const product = products.find(p => p.id === productId);
 
-  // TEST: Random video URLs for every product
   const testVideos = [
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
@@ -95,16 +87,27 @@ export default function ProductDetailPage() {
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
   ];
-  // Use product ID to pick a consistent random video for each product
   const randomVideoUrl = testVideos[parseInt(productId) % testVideos.length];
+
+  // Set default selections
+  useEffect(() => {
+    if (product) {
+      if (product.colors && product.colors.length > 0 && !selectedColor) {
+        setSelectedColor(product.colors[0]);
+      }
+      if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+        setSelectedSize(product.sizes[0]);
+      }
+    }
+  }, [product, selectedColor, selectedSize]);
 
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="text-6xl mb-4">🐾</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Мал табылган жок</h1>
-          <Link href="/" className="text-emerald-600 hover:underline">
+          <div className="text-6xl mb-4">🛒</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Товар табылган жок</h1>
+          <Link href="/" className="text-orange-600 hover:underline">
             Башкы бетке кайтуу
           </Link>
         </div>
@@ -113,37 +116,33 @@ export default function ProductDetailPage() {
   }
 
   const formatPrice = (price: number) => {
-    if (price >= 1000000) {
-      return `${(price / 1000000).toFixed(1)} млн`;
-    }
     return price.toLocaleString('ru-RU');
   };
 
-  // Get related products (same category)
-  const relatedProducts = livestock
+  const discountPercent = product.originalPrice
+    ? Math.round((1 - product.price / product.originalPrice) * 100)
+    : 0;
+
+  const relatedProducts = products
     .filter(p => p.id !== product.id && p.categoryId === product.categoryId)
     .slice(0, 4);
 
-  // Find video for this product
-  const productVideo = videos.find(v => v.livestockId === product.id);
+  const productVideo = videos.find(v => v.productId === product.id);
   const videoIndex = productVideo ? videos.findIndex(v => v.id === productVideo.id) : 0;
 
-  const handleAddToFavorites = () => {
-    setIsLiked(!isLiked);
+  const handleAddToCart = () => {
+    addToCart(product as any, quantity);
   };
 
-  const handleContact = () => {
-    setShowPhone(true);
-  };
-
-  const handleCall = () => {
-    window.location.href = `tel:${product.seller.phone}`;
+  const handleBuyNow = () => {
+    addToCart(product as any, quantity);
+    router.push('/checkout');
   };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32 md:pb-8">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg">
+      <header className="sticky top-0 z-40 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
           <button
             onClick={() => router.back()}
@@ -157,11 +156,11 @@ export default function ProductDetailPage() {
             {product.title}
           </h1>
           <button
-            onClick={handleAddToFavorites}
+            onClick={() => setIsLiked(!isLiked)}
             className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors"
           >
             <svg
-              className={`w-6 h-6 ${isLiked ? 'text-red-400 fill-current' : ''}`}
+              className={`w-6 h-6 ${isLiked ? 'text-red-300 fill-current' : ''}`}
               fill={isLiked ? 'currentColor' : 'none'}
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -187,8 +186,6 @@ export default function ProductDetailPage() {
               title={product.title}
             />
 
-
-            {/* Watch Video Button */}
             {product.videoUrl && (
               <button
                 onClick={() => setShowVideoFeed(true)}
@@ -206,105 +203,159 @@ export default function ProductDetailPage() {
           <div className="space-y-4">
             {/* Badges */}
             <div className="flex flex-wrap gap-2">
-              {product.isPremium && (
-                <span className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 text-white text-sm font-bold rounded-full flex items-center gap-1">
-                  <span>👑</span> ПРЕМИУМ
+              {product.isGroupBuy && (
+                <span className="px-3 py-1 bg-gradient-to-r from-orange-500 to-pink-500 text-white text-sm font-bold rounded-full flex items-center gap-1">
+                  <span>👥</span> БИРГЕ АЛУУ
                 </span>
               )}
-              {product.isVerified && (
-                <span className="px-3 py-1 bg-blue-100 text-blue-600 text-sm font-medium rounded-full flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                  </svg>
-                  Текшерилген
+              {product.isFlashSale && (
+                <span className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-red-500 text-white text-sm font-bold rounded-full flex items-center gap-1 animate-pulse">
+                  <span>⚡</span> FLASH SALE
                 </span>
               )}
-              {product.hasDocuments && (
-                <span className="px-3 py-1 bg-purple-100 text-purple-600 text-sm font-medium rounded-full">
-                  📋 Документтери бар
+              {product.hasFreeship && (
+                <span className="px-3 py-1 bg-teal-100 text-teal-600 text-sm font-medium rounded-full flex items-center gap-1">
+                  🚚 Акысыз жеткирүү
                 </span>
               )}
-              {product.isUrgent && (
-                <span className="px-3 py-1 bg-red-100 text-red-600 text-sm font-medium rounded-full animate-pulse">
-                  🔥 Тез сатылат
+              {product.shop.isOfficialStore && (
+                <span className="px-3 py-1 bg-orange-100 text-orange-600 text-sm font-medium rounded-full flex items-center gap-1">
+                  ✓ Официалдуу дүкөн
                 </span>
               )}
             </div>
 
-            {/* Title & Breed */}
+            {/* Title & Brand */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
-                  {product.breed}
-                </span>
-                <span className={`text-sm px-2 py-0.5 rounded-full ${
-                  product.gender === 'male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'
-                }`}>
-                  {product.gender === 'male' ? '♂ Эркек' : '♀ Ургаачы'}
-                </span>
+                {product.brand && (
+                  <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                    {product.brand}
+                  </span>
+                )}
               </div>
               <h1 className="text-2xl font-bold text-gray-800">{product.title}</h1>
             </div>
 
             {/* Price */}
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-4 border border-emerald-200">
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold text-emerald-600">
-                  {formatPrice(product.price)}
-                </span>
-                <span className="text-lg text-gray-500">сом</span>
-                {product.isNegotiable && (
-                  <span className="text-sm text-amber-600 font-medium">• Сүйлөшүү бар</span>
-                )}
-              </div>
-              {product.originalPrice && (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-lg text-gray-400 line-through">
-                    {formatPrice(product.originalPrice)} сом
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-4 border border-orange-200">
+              {product.isGroupBuy && product.groupBuyPrice ? (
+                <div>
+                  <div className="text-sm text-orange-600 mb-1">👥 Бирге алуу баасы ({product.groupBuyMinPeople}+ адам)</div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-sm text-red-600">¥</span>
+                    <span className="text-3xl font-bold text-red-600">
+                      {formatPrice(product.groupBuyPrice)}
+                    </span>
+                    <span className="text-lg text-gray-400 line-through">
+                      ¥{formatPrice(product.price)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-3">
+                  <span className="text-sm text-red-600">¥</span>
+                  <span className="text-3xl font-bold text-red-600">
+                    {formatPrice(product.price)}
                   </span>
-                  <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                    -{Math.round((1 - product.price / product.originalPrice) * 100)}%
-                  </span>
+                  {product.originalPrice && (
+                    <>
+                      <span className="text-lg text-gray-400 line-through">
+                        ¥{formatPrice(product.originalPrice)}
+                      </span>
+                      <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                        -{discountPercent}%
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
-            </div>
-
-            {/* Animal Details */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <span className="text-xl">📊</span> Мал жөнүндө
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <span className="text-2xl">🎂</span>
-                  <div>
-                    <div className="text-xs text-gray-500">Жашы</div>
-                    <div className="font-semibold text-gray-800">{product.age}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <span className="text-2xl">⚖️</span>
-                  <div>
-                    <div className="text-xs text-gray-500">Салмагы</div>
-                    <div className="font-semibold text-gray-800">{product.weight}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <span className="text-2xl">🎨</span>
-                  <div>
-                    <div className="text-xs text-gray-500">Түсү</div>
-                    <div className="font-semibold text-gray-800">{product.color}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <span className="text-2xl">📍</span>
-                  <div>
-                    <div className="text-xs text-gray-500">Жайгашкан жер</div>
-                    <div className="font-semibold text-gray-800">{product.location}</div>
-                  </div>
-                </div>
+              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                <span>Сатылды: {product.soldCount.toLocaleString()}</span>
+                <span>Калды: {product.stock} даана</span>
               </div>
             </div>
+
+            {/* Colors */}
+            {product.colors && product.colors.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="font-bold text-gray-800 mb-3">Түсү</h3>
+                <div className="flex flex-wrap gap-2">
+                  {product.colors.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                        selectedColor === color
+                          ? 'border-orange-500 bg-orange-50 text-orange-600'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sizes */}
+            {product.sizes && product.sizes.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="font-bold text-gray-800 mb-3">Размер</h3>
+                <div className="flex flex-wrap gap-2">
+                  {product.sizes.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={`w-12 h-12 rounded-lg border-2 font-medium transition-all ${
+                        selectedSize === size
+                          ? 'border-orange-500 bg-orange-50 text-orange-600'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quantity */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h3 className="font-bold text-gray-800 mb-3">Саны</h3>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-10 h-10 rounded-lg border-2 border-gray-200 flex items-center justify-center hover:border-gray-300"
+                >
+                  -
+                </button>
+                <span className="text-xl font-bold w-12 text-center">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                  className="w-10 h-10 rounded-lg border-2 border-gray-200 flex items-center justify-center hover:border-gray-300"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Specifications */}
+            {product.specifications && product.specifications.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="text-xl">📋</span> Мүнөздөмөлөр
+                </h3>
+                <div className="space-y-2">
+                  {product.specifications.map((spec, idx) => (
+                    <div key={idx} className="flex items-center py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-gray-500 w-1/3">{spec.key}</span>
+                      <span className="font-medium text-gray-800">{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Features */}
             {product.features && product.features.length > 0 && (
@@ -314,113 +365,11 @@ export default function ProductDetailPage() {
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {product.features.map((feature, idx) => (
-                    <span key={idx} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-sm rounded-full border border-emerald-200">
+                    <span key={idx} className="px-3 py-1.5 bg-orange-50 text-orange-700 text-sm rounded-full border border-orange-200">
                       ✓ {feature}
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Lineage / Ата-эне маалыматы */}
-            {product.lineage && (
-              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 shadow-sm border-2 border-amber-200">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-xl">🏆</span> Тектүүлүк / Ата-энеси
-                </h3>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Father */}
-                  {product.lineage.father && (
-                    <div className="bg-white rounded-xl p-3 border border-amber-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">👨</span>
-                        <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">АТАСЫ</span>
-                      </div>
-                      {product.lineage.father.photo && (
-                        <div className="relative w-full h-24 rounded-lg overflow-hidden mb-2">
-                          <Image
-                            src={product.lineage.father.photo}
-                            alt={product.lineage.father.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      )}
-                      <h4 className="font-bold text-gray-800 text-sm">{product.lineage.father.name}</h4>
-                      <p className="text-xs text-purple-600 mb-1">{product.lineage.father.breed}</p>
-                      {product.lineage.father.achievements && (
-                        <p className="text-[10px] text-gray-500 leading-tight">{product.lineage.father.achievements}</p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Mother */}
-                  {product.lineage.mother && (
-                    <div className="bg-white rounded-xl p-3 border border-amber-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">👩</span>
-                        <span className="text-xs font-bold text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full">ЭНЕСИ</span>
-                      </div>
-                      {product.lineage.mother.photo && (
-                        <div className="relative w-full h-24 rounded-lg overflow-hidden mb-2">
-                          <Image
-                            src={product.lineage.mother.photo}
-                            alt={product.lineage.mother.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      )}
-                      <h4 className="font-bold text-gray-800 text-sm">{product.lineage.mother.name}</h4>
-                      <p className="text-xs text-purple-600 mb-1">{product.lineage.mother.breed}</p>
-                      {product.lineage.mother.achievements && (
-                        <p className="text-[10px] text-gray-500 leading-tight">{product.lineage.mother.achievements}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Pedigree Info */}
-                {product.lineage.pedigreeInfo && (
-                  <div className="mt-3 p-3 bg-white/50 rounded-lg">
-                    <p className="text-xs text-amber-800">
-                      <span className="font-bold">📜 Тукум маалыматы:</span> {product.lineage.pedigreeInfo}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Document Photos / Документ сүрөттөрү */}
-            {product.documentPhotos && product.documentPhotos.length > 0 && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <span className="text-xl">📋</span> Документтер
-                  <span className="text-xs font-normal text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                    Текшерилген
-                  </span>
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {product.documentPhotos.map((photo, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-emerald-400 transition-colors cursor-pointer">
-                      <Image
-                        src={photo}
-                        alt={`Документ ${idx + 1}`}
-                        fill
-                        className="object-cover hover:scale-105 transition-transform"
-                      />
-                      <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                        </svg>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  * Документтер ветеринардык кызмат тарабынан текшерилген
-                </p>
               </div>
             )}
 
@@ -440,26 +389,20 @@ export default function ProductDetailPage() {
                 </svg>
                 <span>{product.views} көрүү</span>
               </div>
-              <div className="flex items-center gap-1 text-gray-500">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-                <span>{product.likes}</span>
-              </div>
             </div>
 
-            {/* Seller Card */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-emerald-100">
+            {/* Shop Card */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-orange-100">
               <div className="flex items-center gap-4">
-                <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-emerald-200">
+                <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-orange-200">
                   <Image
-                    src={product.seller.avatar}
-                    alt={product.seller.name}
+                    src={product.shop.logo}
+                    alt={product.shop.name}
                     fill
                     className="object-cover"
                   />
-                  {product.seller.isVerified && (
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white">
+                  {product.shop.isVerified && (
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center border-2 border-white">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                       </svg>
@@ -467,65 +410,41 @@ export default function ProductDetailPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-gray-800">{product.seller.name}</h4>
+                  <h4 className="font-bold text-gray-800">{product.shop.name}</h4>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <div className="flex items-center gap-1 text-amber-500">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
                       </svg>
-                      <span className="font-medium">{product.seller.rating}</span>
+                      <span className="font-medium">{product.shop.rating}</span>
                     </div>
                     <span>•</span>
-                    <span>{product.seller.salesCount} сатуу</span>
+                    <span>{product.shop.followersCount.toLocaleString()} жолдоочу</span>
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    📍 {product.seller.location} • {product.seller.memberSince}
+                    📍 {product.shop.location} • Жооп берүү: {product.shop.responseTime}
                   </div>
                 </div>
               </div>
 
-              {/* Contact Buttons */}
               <div className="mt-4 grid grid-cols-2 gap-3">
-                {showPhone ? (
-                  <button
-                    onClick={handleCall}
-                    className="col-span-2 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    {product.seller.phone}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleContact}
-                      className="py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
-                      Чалуу
-                    </button>
-                    <button className="py-3 bg-white border-2 border-emerald-500 text-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      Жазуу
-                    </button>
-                  </>
-                )}
+                <button className="py-2 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors">
+                  Дүкөнгө кирүү
+                </button>
+                <button className="py-2 bg-white border-2 border-orange-500 text-orange-600 rounded-xl font-medium hover:bg-orange-50 transition-colors">
+                  + Жолдоо
+                </button>
               </div>
             </div>
 
             {/* Delivery Info */}
-            {product.hasDelivery && (
-              <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
+            {product.hasFreeship && (
+              <div className="bg-teal-50 rounded-2xl p-4 border border-teal-200">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🚚</span>
                   <div>
-                    <h4 className="font-bold text-blue-800">Жеткирүү бар</h4>
-                    <p className="text-sm text-blue-600">Кыргызстан боюнча жеткирүү мүмкүн</p>
+                    <h4 className="font-bold text-teal-800">Акысыз жеткирүү</h4>
+                    <p className="text-sm text-teal-600">Кыргызстан боюнча акысыз жеткирүү</p>
                   </div>
                 </div>
               </div>
@@ -539,36 +458,31 @@ export default function ProductDetailPage() {
             <button
               onClick={() => setActiveTab('description')}
               className={`flex-1 py-4 text-center font-medium transition-colors relative ${
-                activeTab === 'description'
-                  ? 'text-emerald-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                activeTab === 'description' ? 'text-orange-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Сүрөттөмө
               {activeTab === 'description' && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-0.5 bg-emerald-500" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-0.5 bg-orange-500" />
               )}
             </button>
             <button
-              onClick={() => setActiveTab('seller')}
+              onClick={() => setActiveTab('shop')}
               className={`flex-1 py-4 text-center font-medium transition-colors relative ${
-                activeTab === 'seller'
-                  ? 'text-emerald-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                activeTab === 'shop' ? 'text-orange-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Сатуучу жөнүндө
-              {activeTab === 'seller' && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-0.5 bg-emerald-500" />
+              Дүкөн жөнүндө
+              {activeTab === 'shop' && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-0.5 bg-orange-500" />
               )}
             </button>
           </div>
 
-          {/* Tab Content */}
           <div className="mt-6">
             {activeTab === 'description' ? (
               <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-gray-800 mb-4">Мал жөнүндө маалымат</h2>
+                <h2 className="text-lg font-bold text-gray-800 mb-4">Товар жөнүндө маалымат</h2>
                 {product.description ? (
                   <div className="prose prose-sm text-gray-600 whitespace-pre-line">
                     {product.description}
@@ -576,76 +490,64 @@ export default function ProductDetailPage() {
                 ) : (
                   <div className="text-gray-600 space-y-4">
                     <p>
-                      <strong>{product.title}</strong> - {product.breed} породасынын {product.gender === 'male' ? 'эркек' : 'ургаачы'} малы.
+                      <strong>{product.title}</strong> - {product.brand} брендинин сапаттуу товары.
                     </p>
-                    <p>
-                      Жашы: {product.age}, салмагы {product.weight}. Түсү - {product.color.toLowerCase()}.
-                    </p>
-                    <p>
-                      Жайгашкан жери: {product.location}, {product.region}.
-                    </p>
-                    {product.hasDocuments && (
-                      <p className="text-purple-600">✓ Бардык документтери бар (паспорт, ветеринардык справка)</p>
-                    )}
-                    {product.hasDelivery && (
-                      <p className="text-blue-600">✓ Кыргызстан боюнча жеткирүү мүмкүн</p>
+                    {product.hasFreeship && (
+                      <p className="text-teal-600">✓ Кыргызстан боюнча акысыз жеткирүү</p>
                     )}
                   </div>
                 )}
 
-                {/* Safety Tips */}
                 <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
                   <h4 className="font-bold text-amber-800 mb-2 flex items-center gap-2">
-                    <span>⚠️</span> Коопсуздук эскертүүсү
+                    <span>⚠️</span> Сатып алуу эскертүүсү
                   </h4>
                   <ul className="text-sm text-amber-700 space-y-1">
-                    <li>• Малды көзүңүз менен көргөндөн кийин гана сатып алыңыз</li>
-                    <li>• Документтерин текшериңиз</li>
-                    <li>• Алдын ала төлөм жасабаңыз</li>
-                    <li>• Шектүү жарнамалар жөнүндө кабарлаңыз</li>
+                    <li>• Товардын түсү экрандагыдан айырмаланышы мүмкүн</li>
+                    <li>• Размерлерди туура тандаңыз</li>
+                    <li>• Кайтаруу 14 күн ичинде</li>
                   </ul>
                 </div>
               </div>
             ) : (
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-emerald-200">
+                  <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-orange-200">
                     <Image
-                      src={product.seller.avatar}
-                      alt={product.seller.name}
+                      src={product.shop.logo}
+                      alt={product.shop.name}
                       fill
                       className="object-cover"
                     />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800">{product.seller.name}</h3>
-                    <p className="text-gray-500">{product.seller.location}</p>
-                    <p className="text-sm text-gray-400">Катталган: {product.seller.memberSince}</p>
+                    <h3 className="text-xl font-bold text-gray-800">{product.shop.name}</h3>
+                    <p className="text-gray-500">{product.shop.location}</p>
+                    <p className="text-sm text-gray-400">Катталган: {product.shop.createdAt}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <div className="text-2xl font-bold text-emerald-600">{product.seller.salesCount}</div>
+                    <div className="text-2xl font-bold text-orange-600">{product.shop.productsCount}</div>
+                    <div className="text-sm text-gray-500">Товар</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-xl">
+                    <div className="text-2xl font-bold text-orange-600">{product.shop.salesCount.toLocaleString()}</div>
                     <div className="text-sm text-gray-500">Сатуу</div>
                   </div>
                   <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <div className="text-2xl font-bold text-amber-500">{product.seller.rating}</div>
+                    <div className="text-2xl font-bold text-amber-500">{product.shop.rating}</div>
                     <div className="text-sm text-gray-500">Рейтинг</div>
                   </div>
                   <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <div className="text-2xl font-bold text-blue-500">
-                      {product.seller.isVerified ? '✓' : '—'}
-                    </div>
-                    <div className="text-sm text-gray-500">Текшерилген</div>
+                    <div className="text-2xl font-bold text-teal-500">{product.shop.responseRate}%</div>
+                    <div className="text-sm text-gray-500">Жооп</div>
                   </div>
                 </div>
 
-                <button
-                  onClick={handleContact}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold hover:opacity-90 transition-opacity"
-                >
-                  Сатуучуга байланышуу
+                <button className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold hover:opacity-90 transition-opacity">
+                  Дүкөнгө кирүү
                 </button>
               </div>
             )}
@@ -657,17 +559,15 @@ export default function ProductDetailPage() {
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <span className="text-xl">🐾</span> Окшош жарнамалар
+                <span className="text-xl">🛍️</span> Окшош товарлар
               </h2>
-              <Link href="/categories" className="text-emerald-600 text-sm font-medium hover:underline">
+              <Link href="/categories" className="text-orange-600 text-sm font-medium hover:underline">
                 Баарын көрүү →
               </Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {relatedProducts.map((relatedProduct) => (
-                <Link key={relatedProduct.id} href={`/product/${relatedProduct.id}`}>
-                  <ProductCard product={relatedProduct} />
-                </Link>
+                <ProductCard key={relatedProduct.id} product={relatedProduct} />
               ))}
             </div>
           </div>
@@ -676,24 +576,29 @@ export default function ProductDetailPage() {
 
       {/* Fixed Bottom Bar - Mobile */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-40">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="text-xs text-gray-500">Баасы</div>
-            <div className="text-xl font-bold text-emerald-600">{formatPrice(product.price)} сом</div>
-          </div>
-          <button
-            onClick={handleContact}
-            className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        <div className="flex items-center gap-3">
+          <button className="flex flex-col items-center justify-center w-14">
+            <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
-            Байланышуу
+            <span className="text-[10px] text-gray-500">Чат</span>
+          </button>
+          <button
+            onClick={handleAddToCart}
+            className="flex-1 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity"
+          >
+            Себетке
+          </button>
+          <button
+            onClick={handleBuyNow}
+            className="flex-1 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity"
+          >
+            Сатып алуу
           </button>
         </div>
       </div>
 
-      {/* DRAGGABLE FLOATING MINI VIDEO - Pinduoduo Style */}
+      {/* Draggable Mini Video */}
       {showMiniVideo && !showVideoFeed && (
         <div
           className="fixed z-50 select-none"
@@ -713,7 +618,6 @@ export default function ProductDetailPage() {
               }
             }}
           >
-            {/* Autoplay video - use randomVideoUrl for testing */}
             <video
               ref={miniVideoRef}
               src={randomVideoUrl}
@@ -724,7 +628,6 @@ export default function ProductDetailPage() {
               autoPlay
             />
 
-            {/* Only X close button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
