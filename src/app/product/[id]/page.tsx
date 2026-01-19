@@ -9,13 +9,15 @@ import ProductCard from '@/components/ProductCard';
 import VideoFeed from '@/components/VideoFeed';
 import { products, videos } from '@/data/products';
 import { useCart } from '@/context/CartContext';
+import { generateCommentsForProduct, getRatingDistribution, getAverageRating } from '@/data/comments';
+import { Comment } from '@/data/types';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { addToCart } = useCart();
   const [showVideoFeed, setShowVideoFeed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'description' | 'shop'>('description');
+  const [activeTab, setActiveTab] = useState<'description' | 'shop' | 'reviews'>('description');
   const [isLiked, setIsLiked] = useState(false);
   const [showMiniVideo, setShowMiniVideo] = useState(true);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -428,9 +430,12 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <button className="py-2 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors">
+                <Link
+                  href={`/shop/${product.shop.id}`}
+                  className="py-2 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors text-center"
+                >
                   Дүкөнгө кирүү
-                </button>
+                </Link>
                 <button className="py-2 bg-white border-2 border-orange-500 text-orange-600 rounded-xl font-medium hover:bg-orange-50 transition-colors">
                   + Жолдоо
                 </button>
@@ -467,12 +472,23 @@ export default function ProductDetailPage() {
               )}
             </button>
             <button
+              onClick={() => setActiveTab('reviews')}
+              className={`flex-1 py-4 text-center font-medium transition-colors relative ${
+                activeTab === 'reviews' ? 'text-orange-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Пикирлер ({product.reviewCount})
+              {activeTab === 'reviews' && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-0.5 bg-orange-500" />
+              )}
+            </button>
+            <button
               onClick={() => setActiveTab('shop')}
               className={`flex-1 py-4 text-center font-medium transition-colors relative ${
                 activeTab === 'shop' ? 'text-orange-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Дүкөн жөнүндө
+              Дүкөн
               {activeTab === 'shop' && (
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-0.5 bg-orange-500" />
               )}
@@ -480,7 +496,7 @@ export default function ProductDetailPage() {
           </div>
 
           <div className="mt-6">
-            {activeTab === 'description' ? (
+            {activeTab === 'description' && (
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-gray-800 mb-4">Товар жөнүндө маалымат</h2>
                 {product.description ? (
@@ -509,7 +525,13 @@ export default function ProductDetailPage() {
                   </ul>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {activeTab === 'reviews' && (
+              <ReviewsSection productId={productId} />
+            )}
+
+            {activeTab === 'shop' && (
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-orange-200">
@@ -546,9 +568,12 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                <button className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold hover:opacity-90 transition-opacity">
+                <Link
+                  href={`/shop/${product.shop.id}`}
+                  className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold hover:opacity-90 transition-opacity block text-center"
+                >
                   Дүкөнгө кирүү
-                </button>
+                </Link>
               </div>
             )}
           </div>
@@ -650,6 +675,283 @@ export default function ProductDetailPage() {
           onClose={() => setShowVideoFeed(false)}
           initialIndex={videoIndex}
         />
+      )}
+    </div>
+  );
+}
+
+// Reviews Section Component
+function ReviewsSection({ productId }: { productId: string }) {
+  const [comments] = useState(() => generateCommentsForProduct(productId, 15));
+  const [filter, setFilter] = useState<'all' | 'positive' | 'negative' | 'with-images'>('all');
+  const [showCommentForm, setShowCommentForm] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [newRating, setNewRating] = useState(5);
+
+  const distribution = getRatingDistribution(comments);
+  const avgRating = getAverageRating(comments);
+
+  const filteredComments = comments.filter(comment => {
+    if (filter === 'positive') return comment.rating >= 4;
+    if (filter === 'negative') return comment.rating <= 2;
+    if (filter === 'with-images') return comment.images && comment.images.length > 0;
+    return true;
+  });
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Бүгүн';
+    if (diffDays === 1) return 'Кечээ';
+    if (diffDays < 7) return `${diffDays} күн мурун`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} жума мурун`;
+    return `${Math.floor(diffDays / 30)} ай мурун`;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Rating Summary */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm">
+        <div className="flex items-start gap-6">
+          {/* Average Rating */}
+          <div className="text-center">
+            <div className="text-5xl font-bold text-orange-500">{avgRating}</div>
+            <div className="flex items-center justify-center gap-0.5 mt-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <svg
+                  key={star}
+                  className={`w-5 h-5 ${star <= Math.round(avgRating) ? 'text-amber-400' : 'text-gray-200'}`}
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+              ))}
+            </div>
+            <div className="text-sm text-gray-500 mt-1">{comments.length} пикир</div>
+          </div>
+
+          {/* Rating Distribution */}
+          <div className="flex-1 space-y-2">
+            {distribution.map((item) => (
+              <div key={item.rating} className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 w-3">{item.rating}</span>
+                <svg className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-400 rounded-full transition-all"
+                    style={{ width: `${item.percentage}%` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500 w-10">{item.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {[
+          { key: 'all', label: 'Баары' },
+          { key: 'positive', label: 'Жакшы (4-5)' },
+          { key: 'negative', label: 'Жаман (1-2)' },
+          { key: 'with-images', label: 'Сүрөттүү' },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key as typeof filter)}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              filter === tab.key
+                ? 'bg-orange-500 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Write Comment Button */}
+      <button
+        onClick={() => setShowCommentForm(!showCommentForm)}
+        className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold hover:opacity-90 transition-opacity"
+      >
+        Пикир жазуу
+      </button>
+
+      {/* Comment Form */}
+      {showCommentForm && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-orange-200">
+          <h3 className="font-bold text-gray-800 mb-4">Пикириңизди жазыңыз</h3>
+
+          {/* Rating Selection */}
+          <div className="mb-4">
+            <label className="text-sm text-gray-600 mb-2 block">Баалоо</label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setNewRating(star)}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  <svg
+                    className={`w-8 h-8 ${star <= newRating ? 'text-amber-400' : 'text-gray-200'}`}
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Comment Text */}
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Товар жөнүндө пикириңизди жазыңыз..."
+            className="w-full h-32 p-4 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+
+          {/* Submit Button */}
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => setShowCommentForm(false)}
+              className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+            >
+              Жабуу
+            </button>
+            <button
+              onClick={() => {
+                alert('Пикириңиз кабыл алынды! Рахмат!');
+                setShowCommentForm(false);
+                setNewComment('');
+                setNewRating(5);
+              }}
+              className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors"
+            >
+              Жөнөтүү
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Comments List */}
+      <div className="space-y-4">
+        {filteredComments.map((comment) => (
+          <div key={comment.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            {/* User Info */}
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                <Image
+                  src={comment.userAvatar}
+                  alt={comment.userName}
+                  width={40}
+                  height={40}
+                  className="object-cover"
+                />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-800">{comment.userName}</span>
+                  {comment.isVerifiedPurchase && (
+                    <span className="px-2 py-0.5 bg-green-100 text-green-600 text-xs rounded-full">
+                      Сатып алган
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg
+                        key={star}
+                        className={`w-4 h-4 ${star <= comment.rating ? 'text-amber-400' : 'text-gray-200'}`}
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                      </svg>
+                    ))}
+                  </div>
+                  <span className="text-xs text-gray-400">{formatDate(comment.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Options */}
+            {(comment.selectedColor || comment.selectedSize) && (
+              <div className="flex gap-2 mt-2 text-xs text-gray-500">
+                {comment.selectedColor && <span>Түсү: {comment.selectedColor}</span>}
+                {comment.selectedSize && <span>Размер: {comment.selectedSize}</span>}
+              </div>
+            )}
+
+            {/* Comment Content */}
+            <p className="mt-3 text-gray-700">{comment.content}</p>
+
+            {/* Comment Images */}
+            {comment.images && comment.images.length > 0 && (
+              <div className="flex gap-2 mt-3">
+                {comment.images.map((img, idx) => (
+                  <div key={idx} className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                    <Image
+                      src={img}
+                      alt={`Review image ${idx + 1}`}
+                      width={80}
+                      height={80}
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100">
+              <button className="flex items-center gap-1 text-sm text-gray-500 hover:text-orange-500 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                </svg>
+                <span>{comment.likes}</span>
+              </button>
+              <button className="text-sm text-gray-500 hover:text-orange-500 transition-colors">
+                Жооп берүү
+              </button>
+            </div>
+
+            {/* Shop Reply */}
+            {comment.replies && comment.replies.length > 0 && (
+              <div className="mt-4 ml-8 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                {comment.replies.map((reply) => (
+                  <div key={reply.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-orange-600">{reply.userName}</span>
+                      {reply.isShopOwner && (
+                        <span className="px-2 py-0.5 bg-orange-200 text-orange-700 text-xs rounded-full">
+                          Дүкөн
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400">{formatDate(reply.createdAt)}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-700">{reply.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {filteredComments.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-2xl">
+          <div className="text-4xl mb-3">📝</div>
+          <p className="text-gray-500">Бул категорияда пикир жок</p>
+        </div>
       )}
     </div>
   );

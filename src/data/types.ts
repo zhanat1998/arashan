@@ -106,6 +106,32 @@ export interface GroupBuy {
   participants: { avatar: string; name: string }[];
 }
 
+export interface Comment {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  rating: number;
+  content: string;
+  images?: string[];
+  likes: number;
+  isVerifiedPurchase: boolean;
+  selectedColor?: string;
+  selectedSize?: string;
+  createdAt: string;
+  replies?: CommentReply[];
+}
+
+export interface CommentReply {
+  id: string;
+  userId: string;
+  userName: string;
+  content: string;
+  isShopOwner: boolean;
+  createdAt: string;
+}
+
 // Legacy alias for compatibility
 export type Livestock = Product;
 export type Seller = Shop;
