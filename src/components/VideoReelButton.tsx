@@ -9,7 +9,7 @@ export default function VideoReelButton({ onClick, videoCount }: VideoReelButton
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-6 right-6 z-40 w-16 h-16 bg-gradient-to-br from-[var(--pdd-red)] to-[var(--pdd-orange)] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform group"
+      className="fixed bottom-24 right-4 z-40 w-14 h-14 bg-gradient-to-br from-[var(--pdd-red)] to-[var(--pdd-orange)] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform group"
     >
       {/* Animated rings */}
       <span className="absolute inset-0 rounded-full bg-[var(--pdd-red)] animate-ping opacity-30"></span>

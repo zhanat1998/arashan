@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '@/components/Header';
@@ -11,10 +11,15 @@ import VideoReelButton from '@/components/VideoReelButton';
 import { livestock, categories, videos } from '@/data/products';
 import { useCart } from '@/context/CartContext';
 
+const ITEMS_PER_PAGE = 20;
+
 export default function Home() {
   const [showVideoFeed, setShowVideoFeed] = useState(false);
   const [initialVideoIndex, setInitialVideoIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState('1');
+  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
+  const [isLoading, setIsLoading] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const { totalItems, setIsCartOpen } = useCart();
 
   const handleVideoClick = (livestockId: string) => {
@@ -32,6 +37,45 @@ export default function Home() {
 
   // Premium livestock
   const premiumLivestock = livestock.filter(item => item.isPremium);
+
+  // Displayed items (limited for infinite scroll)
+  const displayedLivestock = filteredLivestock.slice(0, displayCount);
+  const hasMore = displayCount < filteredLivestock.length;
+
+  // Reset display count when category changes
+  useEffect(() => {
+    setDisplayCount(ITEMS_PER_PAGE);
+  }, [activeCategory]);
+
+  // Load more function
+  const loadMore = useCallback(() => {
+    if (isLoading || !hasMore) return;
+
+    setIsLoading(true);
+    // Simulate loading delay for smooth UX
+    setTimeout(() => {
+      setDisplayCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredLivestock.length));
+      setIsLoading(false);
+    }, 300);
+  }, [isLoading, hasMore, filteredLivestock.length]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoading, loadMore]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
@@ -70,29 +114,71 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="grid grid-cols-4 gap-3">
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-            <div className="text-2xl mb-1">🐑</div>
-            <div className="text-lg font-bold text-gray-800">48</div>
-            <div className="text-xs text-gray-500">Кой-эчки</div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-            <div className="text-2xl mb-1">🐴</div>
-            <div className="text-lg font-bold text-gray-800">32</div>
-            <div className="text-xs text-gray-500">Жылкы</div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-            <div className="text-2xl mb-1">🐄</div>
-            <div className="text-lg font-bold text-gray-800">28</div>
-            <div className="text-xs text-gray-500">Уй-музоо</div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-            <div className="text-2xl mb-1">👑</div>
-            <div className="text-lg font-bold text-gray-800">12</div>
-            <div className="text-xs text-gray-500">Премиум</div>
-          </div>
+      {/* 🔥 Trending/Popular Products - Pinduoduo Style */}
+      <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+            <span className="text-lg">🔥</span>
+            Эң көп каралган
+          </h3>
+          <Link href="/categories?sort=popular" className="text-emerald-600 text-xs font-medium">
+            Баары →
+          </Link>
+        </div>
+
+        {/* Horizontal Scroll of Mini Product Cards */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          {[...livestock]
+            .sort((a, b) => (b.views + b.likes * 10) - (a.views + a.likes * 10))
+            .slice(0, 15)
+            .map((item) => (
+              <Link
+                key={item.id}
+                href={`/product/${item.id}`}
+                className="flex-shrink-0 group"
+              >
+                <div className="w-20 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:border-red-300 hover:shadow-md transition-all">
+                  {/* Mini Image */}
+                  <div className="relative w-20 h-20">
+                    <Image
+                      src={item.images[0]}
+                      alt={item.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform"
+                    />
+                    {/* Hot badge for top 5 */}
+                    {[...livestock].sort((a, b) => (b.views + b.likes * 10) - (a.views + a.likes * 10)).slice(0, 5).includes(item) && (
+                      <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded">
+                        ХИТ
+                      </div>
+                    )}
+                    {/* Discount badge */}
+                    {item.originalPrice && (
+                      <div className="absolute top-0.5 right-0.5 px-1 py-0.5 bg-orange-500 text-white text-[8px] font-bold rounded">
+                        -{Math.round((1 - item.price / item.originalPrice) * 100)}%
+                      </div>
+                    )}
+                  </div>
+                  {/* Price */}
+                  <div className="p-1.5 text-center">
+                    <div className="text-xs font-bold text-red-600 truncate">
+                      {item.price >= 1000000
+                        ? `${(item.price / 1000000).toFixed(1)}M`
+                        : item.price >= 1000
+                          ? `${Math.round(item.price / 1000)}K`
+                          : item.price
+                      }
+                      <span className="text-[9px] text-gray-400 font-normal"> с</span>
+                    </div>
+                    {item.originalPrice && (
+                      <div className="text-[9px] text-gray-400 line-through">
+                        {item.originalPrice >= 1000 ? `${Math.round(item.originalPrice / 1000)}K` : item.originalPrice}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
         </div>
       </div>
 
@@ -198,13 +284,12 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredLivestock.map((item, index) => (
-            <Link
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
+          {displayedLivestock.map((item, index) => (
+            <div
               key={item.id}
-              href={`/product/${item.id}`}
-              className="animate-fadeIn block"
-              style={{ animationDelay: `${index * 50}ms` }}
+              className="animate-fadeIn"
+              style={{ animationDelay: `${Math.min(index, 20) * 30}ms` }}
             >
               <ProductCard
                 product={item}
@@ -213,15 +298,28 @@ export default function Home() {
                   handleVideoClick(item.id);
                 } : undefined}
               />
-            </Link>
+            </div>
           ))}
         </div>
 
-        {/* Load More */}
-        <div className="flex justify-center mt-8">
-          <button className="px-8 py-3 bg-white text-gray-600 rounded-full shadow-sm hover:shadow-md transition-shadow font-medium border border-gray-200">
-            Дагы жүктөө
-          </button>
+        {/* Infinite Scroll Trigger & Loading */}
+        <div ref={loadMoreRef} className="flex flex-col items-center mt-8 pb-4">
+          {isLoading && (
+            <div className="flex items-center gap-3 py-4">
+              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-gray-500 text-sm">Жүктөлүүдө...</span>
+            </div>
+          )}
+          {hasMore && !isLoading && (
+            <div className="text-gray-400 text-sm py-4">
+              {displayCount} / {filteredLivestock.length} көрсөтүлдү
+            </div>
+          )}
+          {!hasMore && filteredLivestock.length > 0 && (
+            <div className="text-gray-400 text-sm py-4">
+              Бардык жарнамалар жүктөлдү ({filteredLivestock.length})
+            </div>
+          )}
         </div>
       </div>
 

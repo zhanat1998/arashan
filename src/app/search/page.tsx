@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import { livestock, categories } from '@/data/products';
 import { useCart } from '@/context/CartContext';
+
+const ITEMS_PER_PAGE = 20;
 
 const popularSearches = [
   'Арашан кой', 'Гисар кой', 'Араб ат', 'Акылтек', 'Симментал', 'Алабай', 'Той куш', 'Музоо'
@@ -23,7 +25,10 @@ export default function SearchPage() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000000]);
   const [sortBy, setSortBy] = useState<'relevant' | 'price-low' | 'price-high' | 'popular'>('relevant');
   const [hasSearched, setHasSearched] = useState(false);
+  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const { totalItems, setIsCartOpen } = useCart();
 
   // Load search history from localStorage
@@ -88,6 +93,44 @@ export default function SearchPage() {
         return (bRelevance + b.views) - (aRelevance + a.views);
     }
   });
+
+  // Displayed livestock (limited for infinite scroll)
+  const displayedLivestock = sortedLivestock.slice(0, displayCount);
+  const hasMore = displayCount < sortedLivestock.length;
+
+  // Reset display count when filters/sort change
+  useEffect(() => {
+    setDisplayCount(ITEMS_PER_PAGE);
+  }, [query, selectedCategory, selectedRegion, priceRange, sortBy]);
+
+  // Load more function
+  const loadMore = useCallback(() => {
+    if (isLoading || !hasMore) return;
+
+    setIsLoading(true);
+    setTimeout(() => {
+      setDisplayCount(prev => Math.min(prev + ITEMS_PER_PAGE, sortedLivestock.length));
+      setIsLoading(false);
+    }, 300);
+  }, [isLoading, hasMore, sortedLivestock.length]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoading, loadMore]);
 
   const formatPrice = (price: number) => {
     if (price >= 1000000) {
@@ -418,18 +461,40 @@ export default function SearchPage() {
 
             {/* Products Grid */}
             {sortedLivestock.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {sortedLivestock.map((item, index) => (
-                  <Link
-                    key={item.id}
-                    href={`/product/${item.id}`}
-                    className="animate-fadeIn block"
-                    style={{ animationDelay: `${index * 30}ms` }}
-                  >
-                    <ProductCard product={item} />
-                  </Link>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {displayedLivestock.map((item, index) => (
+                    <Link
+                      key={item.id}
+                      href={`/product/${item.id}`}
+                      className="animate-fadeIn block"
+                      style={{ animationDelay: `${Math.min(index, 20) * 30}ms` }}
+                    >
+                      <ProductCard product={item} />
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Infinite Scroll Trigger & Loading */}
+                <div ref={loadMoreRef} className="flex flex-col items-center mt-6 pb-4">
+                  {isLoading && (
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-500 text-sm">Жүктөлүүдө...</span>
+                    </div>
+                  )}
+                  {hasMore && !isLoading && (
+                    <div className="text-gray-400 text-sm py-4">
+                      {displayCount} / {sortedLivestock.length} көрсөтүлдү
+                    </div>
+                  )}
+                  {!hasMore && sortedLivestock.length > 0 && (
+                    <div className="text-gray-400 text-sm py-4">
+                      Бардыгы жүктөлдү ({sortedLivestock.length})
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <div className="bg-white rounded-xl p-8 text-center shadow-sm">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import ProductGallery from '@/components/ProductGallery';
@@ -18,9 +18,85 @@ export default function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState<'description' | 'seller'>('description');
   const [isLiked, setIsLiked] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
+  const [showMiniVideo, setShowMiniVideo] = useState(true);
+  const miniVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Draggable mini video position
+  const [videoPosition, setVideoPosition] = useState({ x: 16, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const positionStartRef = useRef({ x: 0, y: 0 });
+
+  // Handle drag start
+  const handleDragStart = useCallback((clientX: number, clientY: number) => {
+    setIsDragging(true);
+    dragStartRef.current = { x: clientX, y: clientY };
+    positionStartRef.current = { ...videoPosition };
+  }, [videoPosition]);
+
+  // Handle drag move
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (!isDragging) return;
+
+    const deltaX = clientX - dragStartRef.current.x;
+    const deltaY = clientY - dragStartRef.current.y;
+
+    const newX = Math.max(8, Math.min(window.innerWidth - 108, positionStartRef.current.x + deltaX));
+    const newY = Math.max(60, Math.min(window.innerHeight - 180, positionStartRef.current.y + deltaY));
+
+    setVideoPosition({ x: newX, y: newY });
+  }, [isDragging]);
+
+  // Handle drag end
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Mouse events
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleDragStart(e.clientX, e.clientY);
+  };
+
+  // Touch events
+  const handleTouchStart = (e: React.TouchEvent) => {
+    handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+  };
+
+  // Global mouse/touch move and end
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => handleDragMove(e.clientX, e.clientY);
+    const handleTouchMove = (e: TouchEvent) => handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
+    const handleEnd = () => handleDragEnd();
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleEnd);
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchend', handleEnd);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
   const productId = params.id as string;
   const product = livestock.find(p => p.id === productId);
+
+  // TEST: Random video URLs for every product
+  const testVideos = [
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+  ];
+  // Use product ID to pick a consistent random video for each product
+  const randomVideoUrl = testVideos[parseInt(productId) % testVideos.length];
 
   if (!product) {
     return (
@@ -104,12 +180,13 @@ export default function ProductDetailPage() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left - Gallery */}
-          <div>
+          <div className="relative">
             <ProductGallery
               images={product.images}
               videoUrl={product.videoUrl}
               title={product.title}
             />
+
 
             {/* Watch Video Button */}
             {product.videoUrl && (
@@ -242,6 +319,108 @@ export default function ProductDetailPage() {
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Lineage / Ата-эне маалыматы */}
+            {product.lineage && (
+              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 shadow-sm border-2 border-amber-200">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-xl">🏆</span> Тектүүлүк / Ата-энеси
+                </h3>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Father */}
+                  {product.lineage.father && (
+                    <div className="bg-white rounded-xl p-3 border border-amber-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">👨</span>
+                        <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">АТАСЫ</span>
+                      </div>
+                      {product.lineage.father.photo && (
+                        <div className="relative w-full h-24 rounded-lg overflow-hidden mb-2">
+                          <Image
+                            src={product.lineage.father.photo}
+                            alt={product.lineage.father.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+                      <h4 className="font-bold text-gray-800 text-sm">{product.lineage.father.name}</h4>
+                      <p className="text-xs text-purple-600 mb-1">{product.lineage.father.breed}</p>
+                      {product.lineage.father.achievements && (
+                        <p className="text-[10px] text-gray-500 leading-tight">{product.lineage.father.achievements}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mother */}
+                  {product.lineage.mother && (
+                    <div className="bg-white rounded-xl p-3 border border-amber-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">👩</span>
+                        <span className="text-xs font-bold text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full">ЭНЕСИ</span>
+                      </div>
+                      {product.lineage.mother.photo && (
+                        <div className="relative w-full h-24 rounded-lg overflow-hidden mb-2">
+                          <Image
+                            src={product.lineage.mother.photo}
+                            alt={product.lineage.mother.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+                      <h4 className="font-bold text-gray-800 text-sm">{product.lineage.mother.name}</h4>
+                      <p className="text-xs text-purple-600 mb-1">{product.lineage.mother.breed}</p>
+                      {product.lineage.mother.achievements && (
+                        <p className="text-[10px] text-gray-500 leading-tight">{product.lineage.mother.achievements}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pedigree Info */}
+                {product.lineage.pedigreeInfo && (
+                  <div className="mt-3 p-3 bg-white/50 rounded-lg">
+                    <p className="text-xs text-amber-800">
+                      <span className="font-bold">📜 Тукум маалыматы:</span> {product.lineage.pedigreeInfo}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Document Photos / Документ сүрөттөрү */}
+            {product.documentPhotos && product.documentPhotos.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="text-xl">📋</span> Документтер
+                  <span className="text-xs font-normal text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                    Текшерилген
+                  </span>
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {product.documentPhotos.map((photo, idx) => (
+                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-emerald-400 transition-colors cursor-pointer">
+                      <Image
+                        src={photo}
+                        alt={`Документ ${idx + 1}`}
+                        fill
+                        className="object-cover hover:scale-105 transition-transform"
+                      />
+                      <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <svg className="w-6 h-6 text-white opacity-0 hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  * Документтер ветеринардык кызмат тарабынан текшерилген
+                </p>
               </div>
             )}
 
@@ -514,8 +693,55 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
+      {/* DRAGGABLE FLOATING MINI VIDEO - Pinduoduo Style */}
+      {showMiniVideo && !showVideoFeed && (
+        <div
+          className="fixed z-50 select-none"
+          style={{
+            left: `${videoPosition.x}px`,
+            top: `${videoPosition.y}px`,
+            cursor: isDragging ? 'grabbing' : 'grab',
+          }}
+        >
+          <div
+            className={`relative w-24 h-32 rounded-xl overflow-hidden shadow-2xl border-2 border-white ${isDragging ? 'scale-105' : ''} transition-transform`}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onClick={(e) => {
+              if (!isDragging) {
+                setShowVideoFeed(true);
+              }
+            }}
+          >
+            {/* Autoplay video - use randomVideoUrl for testing */}
+            <video
+              ref={miniVideoRef}
+              src={randomVideoUrl}
+              className="w-full h-full object-cover"
+              loop
+              muted
+              playsInline
+              autoPlay
+            />
+
+            {/* Only X close button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMiniVideo(false);
+              }}
+              className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors z-10"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Video Feed Modal */}
-      {showVideoFeed && productVideo && (
+      {showVideoFeed && (
         <VideoFeed
           videos={videos}
           onClose={() => setShowVideoFeed(false)}

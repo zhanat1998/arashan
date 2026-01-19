@@ -1,14 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import { products, categories } from '@/data/products';
 import { useCart } from '@/context/CartContext';
 
+const ITEMS_PER_PAGE = 20;
+
 export default function CategoriesPage() {
   const [activeCategory, setActiveCategory] = useState('1');
   const [sortBy, setSortBy] = useState<'popular' | 'price-low' | 'price-high' | 'newest'>('popular');
+  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
+  const [isLoading, setIsLoading] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const { totalItems, setIsCartOpen } = useCart();
 
   // Filter products by category
@@ -30,6 +35,44 @@ export default function CategoriesPage() {
         return b.views - a.views;
     }
   });
+
+  // Displayed products (limited for infinite scroll)
+  const displayedProducts = sortedProducts.slice(0, displayCount);
+  const hasMore = displayCount < sortedProducts.length;
+
+  // Reset display count when category or sort changes
+  useEffect(() => {
+    setDisplayCount(ITEMS_PER_PAGE);
+  }, [activeCategory, sortBy]);
+
+  // Load more function
+  const loadMore = useCallback(() => {
+    if (isLoading || !hasMore) return;
+
+    setIsLoading(true);
+    setTimeout(() => {
+      setDisplayCount(prev => Math.min(prev + ITEMS_PER_PAGE, sortedProducts.length));
+      setIsLoading(false);
+    }, 300);
+  }, [isLoading, hasMore, sortedProducts.length]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoading, loadMore]);
 
   const activeCateg = categories.find(c => c.id === activeCategory);
 
@@ -173,18 +216,40 @@ export default function CategoriesPage() {
 
           {/* Products Grid */}
           {sortedProducts.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              {sortedProducts.map((product, index) => (
-                <Link
-                  key={product.id}
-                  href={`/product/${product.id}`}
-                  className="animate-fadeIn block"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <ProductCard product={product} />
-                </Link>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {displayedProducts.map((product, index) => (
+                  <Link
+                    key={product.id}
+                    href={`/product/${product.id}`}
+                    className="animate-fadeIn block"
+                    style={{ animationDelay: `${Math.min(index, 20) * 50}ms` }}
+                  >
+                    <ProductCard product={product} />
+                  </Link>
+                ))}
+              </div>
+
+              {/* Infinite Scroll Trigger & Loading */}
+              <div ref={loadMoreRef} className="flex flex-col items-center mt-6 pb-4">
+                {isLoading && (
+                  <div className="flex items-center gap-3 py-4">
+                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-gray-500 text-sm">Жүктөлүүдө...</span>
+                  </div>
+                )}
+                {hasMore && !isLoading && (
+                  <div className="text-gray-400 text-sm py-4">
+                    {displayCount} / {sortedProducts.length} көрсөтүлдү
+                  </div>
+                )}
+                {!hasMore && sortedProducts.length > 0 && (
+                  <div className="text-gray-400 text-sm py-4">
+                    Бардыгы жүктөлдү ({sortedProducts.length})
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <div className="bg-white rounded-xl p-8 text-center shadow-sm">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

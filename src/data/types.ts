@@ -13,6 +13,26 @@ export interface Livestock {
   gender: 'male' | 'female';
   color: string;
 
+  // Parent lineage / Ата-эне тектүүлүгү
+  lineage?: {
+    father?: {
+      name: string;
+      breed: string;
+      photo?: string;
+      achievements?: string;
+    };
+    mother?: {
+      name: string;
+      breed: string;
+      photo?: string;
+      achievements?: string;
+    };
+    pedigreeInfo?: string;
+  };
+
+  // Document photos / Документ сүрөттөрү
+  documentPhotos?: string[];
+
   // Location & Seller
   location: string;
   region: string;
