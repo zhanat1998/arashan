@@ -1,65 +1,290 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import Header from '@/components/Header';
+import CategoryBar from '@/components/CategoryBar';
+import ProductCard from '@/components/ProductCard';
+import VideoFeed from '@/components/VideoFeed';
+import VideoReelButton from '@/components/VideoReelButton';
+import { livestock, categories, videos } from '@/data/products';
+import { useCart } from '@/context/CartContext';
 
 export default function Home() {
+  const [showVideoFeed, setShowVideoFeed] = useState(false);
+  const [initialVideoIndex, setInitialVideoIndex] = useState(0);
+  const [activeCategory, setActiveCategory] = useState('1');
+  const { totalItems, setIsCartOpen } = useCart();
+
+  const handleVideoClick = (livestockId: string) => {
+    const videoIndex = videos.findIndex(v => v.livestockId === livestockId);
+    if (videoIndex !== -1) {
+      setInitialVideoIndex(videoIndex);
+      setShowVideoFeed(true);
+    }
+  };
+
+  // Filter by category
+  const filteredLivestock = activeCategory === '1'
+    ? livestock
+    : livestock.filter(item => item.categoryId === activeCategory);
+
+  // Premium livestock
+  const premiumLivestock = livestock.filter(item => item.isPremium);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      <Header />
+      <CategoryBar categories={categories} onCategoryChange={setActiveCategory} />
+
+      {/* Hero Banner */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="relative h-44 md:h-64 rounded-3xl overflow-hidden bg-gradient-to-r from-emerald-600 via-green-500 to-teal-500 shadow-xl">
+          <div className="absolute inset-0 flex items-center justify-between px-6 md:px-10">
+            <div className="text-white max-w-md">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
+                  Жаңы
+                </span>
+                <span className="px-3 py-1 bg-amber-400 text-amber-900 rounded-full text-sm font-bold">
+                  Элита
+                </span>
+              </div>
+              <h2 className="text-2xl md:text-4xl font-bold mb-2">Премиум малдар</h2>
+              <p className="text-sm md:text-lg text-white/90 mb-4">Арашан, Гисар койлор жана пародистый аттар</p>
+              <Link
+                href="/categories"
+                className="inline-block px-6 py-2.5 bg-white text-emerald-600 font-bold rounded-full hover:bg-gray-100 transition-colors shadow-lg"
+              >
+                Баарын көрүү
+              </Link>
+            </div>
+            <div className="text-7xl md:text-9xl opacity-90">
+              🐴
+            </div>
+          </div>
+          {/* Decorative */}
+          <div className="absolute top-4 right-32 w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-4 left-20 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+        </div>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="grid grid-cols-4 gap-3">
+          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
+            <div className="text-2xl mb-1">🐑</div>
+            <div className="text-lg font-bold text-gray-800">48</div>
+            <div className="text-xs text-gray-500">Кой-эчки</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
+            <div className="text-2xl mb-1">🐴</div>
+            <div className="text-lg font-bold text-gray-800">32</div>
+            <div className="text-xs text-gray-500">Жылкы</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
+            <div className="text-2xl mb-1">🐄</div>
+            <div className="text-lg font-bold text-gray-800">28</div>
+            <div className="text-xs text-gray-500">Уй-музоо</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
+            <div className="text-2xl mb-1">👑</div>
+            <div className="text-lg font-bold text-gray-800">12</div>
+            <div className="text-xs text-gray-500">Премиум</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Premium Section */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <span className="text-2xl">👑</span>
+              Премиум малдар
+            </h3>
+            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+              ТОП {premiumLivestock.length}
+            </span>
+          </div>
+          <Link href="/categories?filter=premium" className="text-emerald-600 text-sm font-medium hover:underline">
+            Баарын көрүү →
+          </Link>
+        </div>
+
+        {/* Premium Horizontal Scroll */}
+        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
+          {premiumLivestock.map((item) => (
+            <Link
+              key={item.id}
+              href={`/product/${item.id}`}
+              className="flex-shrink-0 w-72"
+            >
+              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 border-2 border-amber-200 hover:border-amber-400 transition-all hover:shadow-lg">
+                <div className="relative h-40 rounded-xl overflow-hidden mb-3">
+                  <Image
+                    src={item.images[0]}
+                    alt={item.title}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute top-2 left-2 px-2 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                    <span>👑</span> ПРЕМИУМ
+                  </div>
+                  {item.videoUrl && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleVideoClick(item.id);
+                      }}
+                      className="absolute bottom-2 right-2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg"
+                    >
+                      <svg className="w-5 h-5 text-red-500 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                    {item.breed}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    item.gender === 'male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'
+                  }`}>
+                    {item.gender === 'male' ? '♂' : '♀'}
+                  </span>
+                </div>
+                <h4 className="font-semibold text-gray-800 line-clamp-1 mb-2">{item.title}</h4>
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-bold text-gray-900">
+                    {item.price >= 1000000
+                      ? `${(item.price / 1000000).toFixed(1)} млн`
+                      : item.price.toLocaleString('ru-RU')
+                    } <span className="text-xs font-normal text-gray-500">сом</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-amber-500">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                    </svg>
+                    <span className="text-sm font-bold">{item.rating}</span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* All Livestock Grid */}
+      <div className="max-w-7xl mx-auto px-4 pb-24">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-2xl">🐾</span>
+            {activeCategory === '1' ? 'Бардык жарнамалар' : categories.find(c => c.id === activeCategory)?.name}
+            <span className="text-sm font-normal text-gray-500">({filteredLivestock.length})</span>
+          </h3>
+          <div className="flex items-center gap-2">
+            <button className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-full">
+              Баары
+            </button>
+            <button className="px-3 py-1.5 text-sm bg-white text-gray-600 rounded-full hover:bg-gray-100 border border-gray-200">
+              Видео
+            </button>
+            <button className="px-3 py-1.5 text-sm bg-white text-gray-600 rounded-full hover:bg-gray-100 border border-gray-200">
+              Жаңы
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredLivestock.map((item, index) => (
+            <Link
+              key={item.id}
+              href={`/product/${item.id}`}
+              className="animate-fadeIn block"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <ProductCard
+                product={item}
+                onVideoClick={item.videoUrl ? (e) => {
+                  e?.preventDefault();
+                  handleVideoClick(item.id);
+                } : undefined}
+              />
+            </Link>
+          ))}
+        </div>
+
+        {/* Load More */}
+        <div className="flex justify-center mt-8">
+          <button className="px-8 py-3 bg-white text-gray-600 rounded-full shadow-sm hover:shadow-md transition-shadow font-medium border border-gray-200">
+            Дагы жүктөө
+          </button>
+        </div>
+      </div>
+
+      {/* Video Reel Button */}
+      <VideoReelButton onClick={() => setShowVideoFeed(true)} videoCount={videos.length} />
+
+      {/* Video Feed */}
+      {showVideoFeed && (
+        <VideoFeed
+          videos={videos}
+          onClose={() => setShowVideoFeed(false)}
+          initialIndex={initialVideoIndex}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      )}
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-30">
+        <div className="flex items-center justify-around py-2">
+          <button className="flex flex-col items-center gap-0.5 text-emerald-600">
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+            <span className="text-xs font-medium">Башкы</span>
+          </button>
+          <Link href="/categories" className="flex flex-col items-center gap-0.5 text-gray-500">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+            <span className="text-xs">Категория</span>
+          </Link>
+          <button
+            onClick={() => setShowVideoFeed(true)}
+            className="flex flex-col items-center gap-0.5 text-gray-500 relative"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div className="w-12 h-12 -mt-6 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center shadow-lg">
+              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+            <span className="text-xs mt-1">Видео</span>
+          </button>
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="flex flex-col items-center gap-0.5 text-gray-500 relative"
           >
-            Documentation
-          </a>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            {totalItems > 0 && (
+              <span className="absolute -top-1 right-2 w-4 h-4 bg-emerald-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {totalItems > 9 ? '9+' : totalItems}
+              </span>
+            )}
+            <span className="text-xs">Тандалма</span>
+          </button>
+          <Link href="/profile" className="flex flex-col items-center gap-0.5 text-gray-500">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span className="text-xs">Профиль</span>
+          </Link>
         </div>
-      </main>
-    </div>
+      </nav>
+    </main>
   );
 }

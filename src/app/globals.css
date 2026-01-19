@@ -1,26 +1,80 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f5f5f5;
   --foreground: #171717;
+
+  /* Pinduoduo Colors */
+  --pdd-red: #e4393c;
+  --pdd-red-dark: #c41e3a;
+  --pdd-orange: #ff6b35;
+  --pdd-yellow: #ffc107;
+  --pdd-green: #28a745;
+  --pdd-gray: #f5f5f5;
+  --pdd-dark: #333333;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-pdd-red: var(--pdd-red);
+  --color-pdd-red-dark: var(--pdd-red-dark);
+  --color-pdd-orange: var(--pdd-orange);
+  --color-pdd-yellow: var(--pdd-yellow);
+  --color-pdd-green: var(--pdd-green);
+  --color-pdd-gray: var(--pdd-gray);
+  --color-pdd-dark: var(--pdd-dark);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Hide scrollbar for video feed */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Video card animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Price bounce animation */
+@keyframes priceBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.price-bounce:hover {
+  animation: priceBounce 0.3s ease-in-out;
+}
+
+/* Confetti animation */
+@keyframes confetti {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-confetti {
+  animation: confetti linear forwards;
 }
