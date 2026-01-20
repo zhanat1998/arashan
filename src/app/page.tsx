@@ -30,27 +30,20 @@ export default function Home() {
     }
   };
 
-  // Filter by category
   const filteredProducts = activeCategory === '1'
     ? products
     : products.filter(item => item.categoryId === activeCategory);
 
-  // Hot products (group buy or flash sale)
   const hotProducts = products.filter(item => item.isGroupBuy || item.isFlashSale).slice(0, 10);
-
-  // Displayed items (limited for infinite scroll)
   const displayedProducts = filteredProducts.slice(0, displayCount);
   const hasMore = displayCount < filteredProducts.length;
 
-  // Reset display count when category changes
   useEffect(() => {
     setDisplayCount(ITEMS_PER_PAGE);
   }, [activeCategory]);
 
-  // Load more function
   const loadMore = useCallback(() => {
     if (isLoading || !hasMore) return;
-
     setIsLoading(true);
     setTimeout(() => {
       setDisplayCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredProducts.length));
@@ -58,7 +51,6 @@ export default function Home() {
     }, 300);
   }, [isLoading, hasMore, filteredProducts.length]);
 
-  // IntersectionObserver for infinite scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -68,101 +60,60 @@ export default function Home() {
       },
       { threshold: 0.1, rootMargin: '100px' }
     );
-
     if (loadMoreRef.current) {
       observer.observe(loadMoreRef.current);
     }
-
     return () => observer.disconnect();
   }, [hasMore, isLoading, loadMore]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <main className="min-h-screen bg-gray-100">
       <Header />
       <CategoryBar categories={categories} onCategoryChange={setActiveCategory} />
 
-      {/* Hero Banner */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="relative h-44 md:h-64 rounded-3xl overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 shadow-xl">
-          <div className="absolute inset-0 flex items-center justify-between px-6 md:px-10">
-            <div className="text-white max-w-md">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
-                  Жаңы
-                </span>
-                <span className="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full text-sm font-bold">
-                  FLASH SALE
-                </span>
+      {/* Hero Banner - Compact */}
+      <div className="px-1.5 py-1.5">
+        <div className="relative h-28 rounded-lg overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-pink-500">
+          <div className="absolute inset-0 flex items-center justify-between px-3">
+            <div className="text-white">
+              <div className="flex items-center gap-1 mb-1">
+                <span className="px-1.5 py-0.5 bg-white/20 rounded text-[10px] font-medium">Жаңы</span>
+                <span className="px-1.5 py-0.5 bg-yellow-400 text-yellow-900 rounded text-[10px] font-bold">FLASH</span>
               </div>
-              <h2 className="text-2xl md:text-4xl font-bold mb-2">Супер арзандатуу!</h2>
-              <p className="text-sm md:text-lg text-white/90 mb-4">50%ка чейин арзандатуу • Бирге алуу</p>
-              <Link
-                href="/categories"
-                className="inline-block px-6 py-2.5 bg-white text-orange-600 font-bold rounded-full hover:bg-gray-100 transition-colors shadow-lg"
-              >
-                Сатып алуу
-              </Link>
+              <h2 className="text-lg font-bold">50% чейин арзан!</h2>
+              <p className="text-[10px] text-white/90">Бирге алуу · Акысыз жеткирүү</p>
             </div>
-            <div className="text-7xl md:text-9xl opacity-90">
-              🛍️
-            </div>
+            <div className="text-5xl opacity-90">🛍️</div>
           </div>
-          <div className="absolute top-4 right-32 w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
-          <div className="absolute bottom-4 left-20 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
         </div>
       </div>
 
-      {/* 🔥 Trending/Popular Products */}
-      <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-            <span className="text-lg">🔥</span>
-            Эң көп каралган
+      {/* Trending - Compact */}
+      <div className="px-1.5 py-1">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
+            <span>🔥</span> Популярдуу
           </h3>
-          <Link href="/categories?sort=popular" className="text-orange-600 text-xs font-medium">
-            Баары →
-          </Link>
+          <Link href="/categories?sort=popular" className="text-orange-600 text-[10px]">Баары →</Link>
         </div>
 
-        {/* Horizontal Scroll of Mini Product Cards */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1.5 px-1.5 scrollbar-hide">
           {[...products]
             .sort((a, b) => (b.views + b.likes * 10) - (a.views + a.likes * 10))
-            .slice(0, 15)
+            .slice(0, 12)
             .map((item) => (
-              <Link
-                key={item.id}
-                href={`/product/${item.id}`}
-                className="flex-shrink-0 group"
-              >
-                <div className="w-20 bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:border-orange-300 hover:shadow-md transition-all">
-                  <div className="relative w-20 h-20">
-                    <Image
-                      src={item.images[0]}
-                      alt={item.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform"
-                    />
-                    {[...products].sort((a, b) => (b.views + b.likes * 10) - (a.views + a.likes * 10)).slice(0, 5).includes(item) && (
-                      <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-red-500 text-white text-[8px] font-bold rounded">
-                        ХИТ
-                      </div>
-                    )}
+              <Link key={item.id} href={`/product/${item.id}`} className="flex-shrink-0">
+                <div className="w-16 bg-white rounded-lg overflow-hidden border border-gray-100">
+                  <div className="relative w-16 h-16">
+                    <Image src={item.images[0]} alt={item.title} fill className="object-cover" />
                     {item.originalPrice && (
-                      <div className="absolute top-0.5 right-0.5 px-1 py-0.5 bg-orange-500 text-white text-[8px] font-bold rounded">
+                      <div className="absolute top-0 right-0 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-bl">
                         -{Math.round((1 - item.price / item.originalPrice) * 100)}%
                       </div>
                     )}
                   </div>
-                  <div className="p-1.5 text-center">
-                    <div className="text-xs font-bold text-red-600 truncate">
-                      ¥{item.price >= 1000 ? `${(item.price / 1000).toFixed(0)}K` : item.price}
-                    </div>
-                    {item.originalPrice && (
-                      <div className="text-[9px] text-gray-400 line-through">
-                        ¥{item.originalPrice >= 1000 ? `${Math.round(item.originalPrice / 1000)}K` : item.originalPrice}
-                      </div>
-                    )}
+                  <div className="p-1 text-center">
+                    <div className="text-[10px] font-bold text-red-600">¥{item.price >= 1000 ? `${(item.price / 1000).toFixed(0)}K` : item.price}</div>
                   </div>
                 </div>
               </Link>
@@ -170,88 +121,46 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Hot Deals Section - Group Buy & Flash Sales */}
+      {/* Hot Deals - Compact */}
       {hotProducts.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <span className="text-2xl">👥</span>
-                Бирге алуу & Flash Sale
-              </h3>
-              <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full animate-pulse">
-                🔥 HOT
-              </span>
-            </div>
-            <Link href="/categories?filter=deals" className="text-orange-600 text-sm font-medium hover:underline">
-              Баарын көрүү →
-            </Link>
+        <div className="px-1.5 py-1">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
+              <span>👥</span> Бирге алуу
+              <span className="px-1 py-0.5 bg-orange-100 text-orange-700 text-[8px] font-bold rounded animate-pulse">HOT</span>
+            </h3>
+            <Link href="/categories?filter=deals" className="text-orange-600 text-[10px]">Баары →</Link>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-            {hotProducts.map((item) => (
-              <Link
-                key={item.id}
-                href={`/product/${item.id}`}
-                className="flex-shrink-0 w-72"
-              >
-                <div className={`bg-gradient-to-br ${item.isGroupBuy ? 'from-orange-50 to-pink-50 border-orange-200' : 'from-yellow-50 to-red-50 border-yellow-200'} rounded-2xl p-4 border-2 hover:shadow-lg transition-all`}>
-                  <div className="relative h-40 rounded-xl overflow-hidden mb-3">
-                    <Image
-                      src={item.images[0]}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                    />
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1.5 px-1.5 scrollbar-hide">
+            {hotProducts.slice(0, 6).map((item) => (
+              <Link key={item.id} href={`/product/${item.id}`} className="flex-shrink-0 w-36">
+                <div className={`bg-gradient-to-br ${item.isGroupBuy ? 'from-orange-50 to-pink-50' : 'from-yellow-50 to-red-50'} rounded-lg p-1.5 border border-orange-100`}>
+                  <div className="relative h-24 rounded overflow-hidden mb-1">
+                    <Image src={item.images[0]} alt={item.title} fill className="object-cover" />
                     {item.isGroupBuy && (
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-gradient-to-r from-orange-500 to-pink-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
-                        <span>👥</span> БИРГЕ АЛУУ
+                      <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-gradient-to-r from-orange-500 to-pink-500 text-white text-[8px] font-bold rounded">
+                        👥 БИРГЕ
                       </div>
                     )}
-                    {item.isFlashSale && (
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-gradient-to-r from-yellow-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center gap-1 animate-pulse">
-                        <span>⚡</span> FLASH
+                    {item.isFlashSale && !item.isGroupBuy && (
+                      <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-gradient-to-r from-yellow-500 to-red-500 text-white text-[8px] font-bold rounded animate-pulse">
+                        ⚡ FLASH
                       </div>
                     )}
                     {item.videoUrl && (
                       <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleVideoClick(item.id);
-                        }}
-                        className="absolute bottom-2 right-2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg"
+                        onClick={(e) => { e.preventDefault(); handleVideoClick(item.id); }}
+                        className="absolute bottom-0.5 right-0.5 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center"
                       >
-                        <svg className="w-5 h-5 text-red-500 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
+                        <svg className="w-3 h-3 text-red-500 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    {item.brand && (
-                      <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                        {item.brand}
-                      </span>
-                    )}
-                    {item.hasFreeship && (
-                      <span className="text-xs text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">
-                        🚚 Акысыз
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="font-semibold text-gray-800 line-clamp-1 mb-2">{item.title}</h4>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-lg font-bold text-red-600">
-                        ¥{item.isGroupBuy && item.groupBuyPrice ? item.groupBuyPrice.toLocaleString() : item.price.toLocaleString()}
-                      </div>
-                      {item.isGroupBuy && (
-                        <div className="text-xs text-orange-600">{item.groupBuyMinPeople}+ адам керек</div>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Сатылды {item.soldCount.toLocaleString()}
-                    </div>
+                  <h4 className="text-[10px] font-medium text-gray-800 line-clamp-1">{item.title}</h4>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <span className="text-xs font-bold text-red-600">¥{item.isGroupBuy && item.groupBuyPrice ? item.groupBuyPrice.toLocaleString() : item.price.toLocaleString()}</span>
+                    <span className="text-[8px] text-gray-400">{item.soldCount > 1000 ? `${(item.soldCount/1000).toFixed(1)}K` : item.soldCount}</span>
                   </div>
                 </div>
               </Link>
@@ -260,62 +169,44 @@ export default function Home() {
         </div>
       )}
 
-      {/* All Products Grid */}
-      <div className="max-w-7xl mx-auto px-4 pb-24">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <span className="text-2xl">🛍️</span>
-            {activeCategory === '1' ? 'Бардык товарлар' : categories.find(c => c.id === activeCategory)?.name}
-            <span className="text-sm font-normal text-gray-500">({filteredProducts.length})</span>
+      {/* All Products Grid - Compact */}
+      <div className="px-1.5 pb-16">
+        <div className="flex items-center justify-between mb-1.5 py-1 bg-white rounded px-2">
+          <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
+            🛍️ {activeCategory === '1' ? 'Баары' : categories.find(c => c.id === activeCategory)?.name}
+            <span className="text-[10px] font-normal text-gray-400">({filteredProducts.length})</span>
           </h3>
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1.5 text-sm bg-orange-500 text-white rounded-full">
-              Баары
-            </button>
-            <button className="px-3 py-1.5 text-sm bg-white text-gray-600 rounded-full hover:bg-gray-100 border border-gray-200">
-              Жаңы
-            </button>
-            <button className="px-3 py-1.5 text-sm bg-white text-gray-600 rounded-full hover:bg-gray-100 border border-gray-200">
-              Арзан
-            </button>
+          <div className="flex items-center gap-1">
+            <button className="px-2 py-0.5 text-[10px] bg-orange-500 text-white rounded">Баары</button>
+            <button className="px-2 py-0.5 text-[10px] bg-white text-gray-600 rounded border border-gray-200">Жаңы</button>
+            <button className="px-2 py-0.5 text-[10px] bg-white text-gray-600 rounded border border-gray-200">Арзан</button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
+        <div className="grid grid-cols-2 gap-1">
           {displayedProducts.map((item, index) => (
-            <div
-              key={item.id}
-              className="animate-fadeIn"
-              style={{ animationDelay: `${Math.min(index, 20) * 30}ms` }}
-            >
+            <div key={item.id} className="animate-fadeIn" style={{ animationDelay: `${Math.min(index, 20) * 30}ms` }}>
               <ProductCard
                 product={item}
-                onVideoClick={item.videoUrl ? (e) => {
-                  e?.preventDefault();
-                  handleVideoClick(item.id);
-                } : undefined}
+                onVideoClick={item.videoUrl ? (e) => { e?.preventDefault(); handleVideoClick(item.id); } : undefined}
               />
             </div>
           ))}
         </div>
 
-        {/* Infinite Scroll Trigger & Loading */}
-        <div ref={loadMoreRef} className="flex flex-col items-center mt-8 pb-4">
+        {/* Infinite Scroll */}
+        <div ref={loadMoreRef} className="flex flex-col items-center mt-2 pb-2">
           {isLoading && (
-            <div className="flex items-center gap-3 py-4">
-              <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-gray-500 text-sm">Жүктөлүүдө...</span>
+            <div className="flex items-center gap-2 py-2">
+              <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-gray-500 text-[10px]">Жүктөлүүдө...</span>
             </div>
           )}
           {hasMore && !isLoading && (
-            <div className="text-gray-400 text-sm py-4">
-              {displayCount} / {filteredProducts.length} көрсөтүлдү
-            </div>
+            <div className="text-gray-400 text-[10px] py-2">{displayCount} / {filteredProducts.length}</div>
           )}
           {!hasMore && filteredProducts.length > 0 && (
-            <div className="text-gray-400 text-sm py-4">
-              Бардык товарлар жүктөлдү ({filteredProducts.length})
-            </div>
+            <div className="text-gray-400 text-[10px] py-2">Баары жүктөлдү ({filteredProducts.length})</div>
           )}
         </div>
       </div>
@@ -325,58 +216,38 @@ export default function Home() {
 
       {/* Video Feed */}
       {showVideoFeed && (
-        <VideoFeed
-          videos={videos}
-          onClose={() => setShowVideoFeed(false)}
-          initialIndex={initialVideoIndex}
-        />
+        <VideoFeed videos={videos} onClose={() => setShowVideoFeed(false)} initialIndex={initialVideoIndex} />
       )}
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Compact */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-30">
-        <div className="flex items-center justify-around py-2">
+        <div className="flex items-center justify-around py-1.5">
           <button className="flex flex-col items-center gap-0.5 text-orange-600">
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-            </svg>
-            <span className="text-xs font-medium">Башкы</span>
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span className="text-[10px] font-medium">Башкы</span>
           </button>
           <Link href="/categories" className="flex flex-col items-center gap-0.5 text-gray-500">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
-            <span className="text-xs">Категория</span>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg>
+            <span className="text-[10px]">Категория</span>
           </Link>
-          <button
-            onClick={() => setShowVideoFeed(true)}
-            className="flex flex-col items-center gap-0.5 text-gray-500 relative"
-          >
-            <div className="w-12 h-12 -mt-6 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+          <button onClick={() => setShowVideoFeed(true)} className="flex flex-col items-center gap-0.5 text-gray-500 relative">
+            <div className="w-10 h-10 -mt-5 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </div>
-            <span className="text-xs mt-1">Видео</span>
+            <span className="text-[10px]">Видео</span>
           </button>
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="flex flex-col items-center gap-0.5 text-gray-500 relative"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
+          <button onClick={() => setIsCartOpen(true)} className="flex flex-col items-center gap-0.5 text-gray-500 relative">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
             {totalItems > 0 && (
-              <span className="absolute -top-1 right-2 w-4 h-4 bg-orange-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 right-1 w-4 h-4 bg-orange-600 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                 {totalItems > 9 ? '9+' : totalItems}
               </span>
             )}
-            <span className="text-xs">Себет</span>
+            <span className="text-[10px]">Себет</span>
           </button>
           <Link href="/profile" className="flex flex-col items-center gap-0.5 text-gray-500">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-xs">Профиль</span>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            <span className="text-[10px]">Профиль</span>
           </Link>
         </div>
       </nav>
