@@ -278,9 +278,9 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-400">{order.date}</p>
                     <p className="text-lg font-bold text-[var(--pdd-red)] mt-1">₽{formatPrice(order.total)}</p>
                   </div>
-                  <button className="self-center px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                  <Link href={`/orders/${order.id}`} className="self-center px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
                     Көрүү
-                  </button>
+                  </Link>
                 </div>
               </div>
             ))}
