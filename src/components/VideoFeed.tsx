@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Video } from '@/data/types';
 import { generateReelComments, ReelComment } from '@/data/reelsComments';
+import ReviewsList from '@/components/ReviewsList';
+import ReviewForm from '@/components/ReviewForm';
 
 interface VideoFeedProps {
   videos: Video[];
@@ -465,12 +467,14 @@ export default function VideoFeed({ videos, onClose, initialIndex = 0 }: VideoFe
   );
 }
 
-// Instagram-style Comments Sheet
+// Instagram-style Comments Sheet with Reviews Tab
 function CommentsSheet({ videoId, isOpen, onClose, commentCount }: { videoId: string; isOpen: boolean; onClose: () => void; commentCount: number }) {
+  const [activeTab, setActiveTab] = useState<'comments' | 'reviews'>('comments');
   const [comments, setComments] = useState<ReelComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  const [showReviewForm, setShowReviewForm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -480,6 +484,14 @@ function CommentsSheet({ videoId, isOpen, onClose, commentCount }: { videoId: st
       setComments(generateReelComments(videoId, 100));
     }
   }, [isOpen, videoId]);
+
+  // Reset tab when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveTab('comments');
+      setShowReviewForm(false);
+    }
+  }, [isOpen]);
 
   // Handle drag to close
   const [dragY, setDragY] = useState(0);
@@ -563,14 +575,57 @@ function CommentsSheet({ videoId, isOpen, onClose, commentCount }: { videoId: st
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
-        {/* Header */}
-        <div className="px-4 pb-2 border-b border-gray-100 flex items-center justify-between">
-          <span className="font-semibold text-sm">Комментарийлер</span>
-          <span className="text-xs text-gray-500">{commentCount.toLocaleString()}</span>
+        {/* Header with Tabs */}
+        <div className="px-4 pb-0 border-b border-gray-100">
+          <div className="flex items-center justify-center gap-6">
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === 'comments'
+                  ? 'text-gray-900 border-gray-900'
+                  : 'text-gray-400 border-transparent'
+              }`}
+            >
+              Комментарийлер
+              <span className="ml-1 text-xs text-gray-400">{commentCount.toLocaleString()}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('reviews')}
+              className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === 'reviews'
+                  ? 'text-gray-900 border-gray-900'
+                  : 'text-gray-400 border-transparent'
+              }`}
+            >
+              Пикирлер
+            </button>
+          </div>
         </div>
 
-        {/* Comments List */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-2">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {activeTab === 'reviews' ? (
+            // Reviews Tab
+            <div className="h-full">
+              {showReviewForm ? (
+                <div className="p-4">
+                  <ReviewForm
+                    videoId={videoId}
+                    onSuccess={() => setShowReviewForm(false)}
+                    onCancel={() => setShowReviewForm(false)}
+                  />
+                </div>
+              ) : (
+                <ReviewsList
+                  videoId={videoId}
+                  showWriteReview={true}
+                  onWriteReviewClick={() => setShowReviewForm(true)}
+                />
+              )}
+            </div>
+          ) : (
+            // Comments Tab
+            <div className="px-4 py-2">
           {comments.map(comment => (
             <div key={comment.id} className="py-2">
               <div className="flex gap-2.5">
@@ -656,9 +711,12 @@ function CommentsSheet({ videoId, isOpen, onClose, commentCount }: { videoId: st
               </div>
             </div>
           ))}
+            </div>
+          )}
         </div>
 
-        {/* Input */}
+        {/* Input - only show for comments tab */}
+        {activeTab === 'comments' && (
         <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-2 bg-white safe-bottom">
           <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
             <Image src="https://i.pravatar.cc/100?img=68" alt="" width={32} height={32} className="object-cover" />
@@ -678,6 +736,7 @@ function CommentsSheet({ videoId, isOpen, onClose, commentCount }: { videoId: st
             </button>
           )}
         </div>
+        )}
       </div>
     </div>
   );

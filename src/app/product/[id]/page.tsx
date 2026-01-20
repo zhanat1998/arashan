@@ -5,15 +5,13 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import ProductGallery from '@/components/ProductGallery';
-import ProductCard from '@/components/ProductCard';
 import VideoFeed from '@/components/VideoFeed';
 import ContactSellerButton from '@/components/ContactSellerButton';
+import ReviewsList from '@/components/ReviewsList';
+import ReviewForm from '@/components/ReviewForm';
 import { videos } from '@/data/products';
 import { useProduct, useProducts } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
-import { useChat } from '@/context/ChatContext';
-import { generateCommentsForProduct, getRatingDistribution, getAverageRating } from '@/data/comments';
-import { Comment } from '@/data/types';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -367,8 +365,8 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Reviews Section - Compact */}
-      <ReviewsSection productId={productId} />
+      {/* Reviews Section */}
+      <ProductReviewsSection productId={productId} />
 
       {/* Specifications - Compact */}
       {product.specifications && product.specifications.length > 0 && (
@@ -595,135 +593,49 @@ export default function ProductDetailPage() {
   );
 }
 
-// Compact Reviews Section
-function ReviewsSection({ productId }: { productId: string }) {
-  const [comments] = useState(() => generateCommentsForProduct(productId, 15));
-  const [showAll, setShowAll] = useState(false);
-
-  const avgRating = getAverageRating(comments);
-  const distribution = getRatingDistribution(comments);
-  const displayComments = showAll ? comments : comments.slice(0, 3);
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Бүгүн';
-    if (diffDays === 1) return 'Кечээ';
-    if (diffDays < 7) return `${diffDays} күн мурун`;
-    return `${Math.floor(diffDays / 7)} жума мурун`;
-  };
+// Product Reviews Section with real API
+function ProductReviewsSection({ productId }: { productId: string }) {
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   return (
     <div className="bg-white mt-1.5">
-      {/* Header */}
-      <div className="px-3 py-2 flex items-center justify-between border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-800">Пикирлер</span>
-          <span className="text-xs text-gray-400">({comments.length})</span>
-        </div>
-        <button onClick={() => setShowAll(!showAll)} className="text-xs text-gray-400 flex items-center gap-0.5">
-          Баарын көрүү
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+      <div className="px-3 py-2 border-b border-gray-100">
+        <h3 className="text-sm font-medium text-gray-800">Пикирлер</h3>
       </div>
 
-      {/* Rating Summary - Compact */}
-      <div className="px-3 py-2 flex items-center gap-4 border-b border-gray-100">
-        <div className="flex items-center gap-1">
-          <span className="text-2xl font-bold text-orange-500">{avgRating}</span>
-          <div className="flex gap-0.5">
-            {[1,2,3,4,5].map(s => (
-              <svg key={s} className={`w-3 h-3 ${s <= Math.round(avgRating) ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-              </svg>
-            ))}
-          </div>
-        </div>
-        <div className="flex-1 flex gap-2 overflow-x-auto">
-          {distribution.slice(0, 3).map(d => (
-            <span key={d.rating} className="text-[10px] text-gray-500 whitespace-nowrap bg-gray-50 px-1.5 py-0.5 rounded">
-              {d.rating}⭐ ({d.count})
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Comments List - Compact */}
-      <div className="divide-y divide-gray-50">
-        {displayComments.map(comment => (
-          <div key={comment.id} className="px-3 py-2">
-            <div className="flex items-start gap-2">
-              <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-200 shrink-0">
-                <Image src={comment.userAvatar} alt="" width={28} height={28} className="object-cover" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-medium text-gray-800 truncate">{comment.userName}</span>
-                  {comment.isVerifiedPurchase && (
-                    <span className="text-[8px] bg-green-100 text-green-600 px-1 rounded">✓ Алган</span>
-                  )}
-                  <span className="text-[10px] text-gray-400 ml-auto">{formatDate(comment.createdAt)}</span>
-                </div>
-                <div className="flex gap-0.5 mt-0.5">
-                  {[1,2,3,4,5].map(s => (
-                    <svg key={s} className={`w-2.5 h-2.5 ${s <= comment.rating ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                    </svg>
-                  ))}
-                  {(comment.selectedColor || comment.selectedSize) && (
-                    <span className="text-[10px] text-gray-400 ml-1">
-                      {comment.selectedColor} {comment.selectedSize}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-600 mt-1 line-clamp-2">{comment.content}</p>
-                {comment.images && comment.images.length > 0 && (
-                  <div className="flex gap-1 mt-1.5">
-                    {comment.images.map((img, idx) => (
-                      <div key={idx} className="w-12 h-12 rounded overflow-hidden bg-gray-100">
-                        <Image src={img} alt="" width={48} height={48} className="object-cover w-full h-full" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* Shop Reply */}
-                {comment.replies && comment.replies.length > 0 && (
-                  <div className="mt-1.5 bg-orange-50 rounded p-1.5">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-medium text-orange-600">{comment.replies[0].userName}</span>
-                      <span className="text-[8px] bg-orange-200 text-orange-700 px-1 rounded">Дүкөн</span>
-                    </div>
-                    <p className="text-[10px] text-gray-600 mt-0.5">{comment.replies[0].content}</p>
-                  </div>
-                )}
-                {/* Actions */}
-                <div className="flex items-center gap-3 mt-1.5">
-                  <button className="text-[10px] text-gray-400 flex items-center gap-0.5">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                    </svg>
-                    {comment.likes}
-                  </button>
-                  <button className="text-[10px] text-gray-400">Жооп</button>
-                </div>
-              </div>
+      {/* Review Form Modal */}
+      {showReviewForm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowReviewForm(false)} />
+          <div className="relative bg-white rounded-t-2xl w-full max-h-[80vh] overflow-y-auto animate-slide-up">
+            <div className="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-medium">Пикир жазуу</h3>
+              <button onClick={() => setShowReviewForm(false)} className="p-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4">
+              <ReviewForm
+                productId={productId}
+                onSuccess={() => {
+                  setShowReviewForm(false);
+                  // Reviews list will auto-refresh
+                }}
+                onCancel={() => setShowReviewForm(false)}
+              />
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Show More */}
-      {comments.length > 3 && !showAll && (
-        <button
-          onClick={() => setShowAll(true)}
-          className="w-full py-2 text-xs text-orange-500 border-t border-gray-100"
-        >
-          Дагы {comments.length - 3} пикир көрүү
-        </button>
+        </div>
       )}
+
+      {/* Reviews List */}
+      <ReviewsList
+        productId={productId}
+        showWriteReview={true}
+        onWriteReviewClick={() => setShowReviewForm(true)}
+      />
     </div>
   );
 }
