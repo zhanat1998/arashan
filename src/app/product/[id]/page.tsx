@@ -8,7 +8,8 @@ import ProductGallery from '@/components/ProductGallery';
 import ProductCard from '@/components/ProductCard';
 import VideoFeed from '@/components/VideoFeed';
 import ChatBot from '@/components/ChatBot';
-import { products, videos } from '@/data/products';
+import { videos } from '@/data/products';
+import { useProduct, useProducts } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
 import { generateCommentsForProduct, getRatingDistribution, getAverageRating } from '@/data/comments';
 import { Comment } from '@/data/types';
@@ -84,7 +85,15 @@ export default function ProductDetailPage() {
   }, [isDragging, handleDragMove, handleDragEnd]);
 
   const productId = params.id as string;
-  const product = products.find(p => p.id === productId);
+
+  // Fetch product from API
+  const { product, loading, error } = useProduct(productId);
+
+  // Fetch related products
+  const { products: relatedProducts } = useProducts({
+    category: product?.categoryId,
+    limit: 6
+  });
 
   const testVideos = [
     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
@@ -106,7 +115,20 @@ export default function ProductDetailPage() {
     }
   }, [product, selectedColor, selectedSize]);
 
-  if (!product) {
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">Жүктөлүүдө...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error or not found
+  if (error || !product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -125,9 +147,8 @@ export default function ProductDetailPage() {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
 
-  const relatedProducts = products
-    .filter(p => p.id !== product.id && p.categoryId === product.categoryId)
-    .slice(0, 6);
+  // Filter out current product from related products
+  const filteredRelated = relatedProducts.filter(p => p.id !== product.id).slice(0, 6);
 
   const productVideo = videos.find(v => v.productId === product.id);
   const videoIndex = productVideo ? videos.findIndex(v => v.id === productVideo.id) : 0;
@@ -362,14 +383,14 @@ export default function ProductDetailPage() {
       )}
 
       {/* Related Products - Compact */}
-      {relatedProducts.length > 0 && (
+      {filteredRelated.length > 0 && (
         <div className="bg-white mt-1.5 px-3 py-2">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-gray-800">Окшош товарлар</h3>
             <Link href="/categories" className="text-xs text-gray-400">Баарын көрүү &gt;</Link>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
-            {relatedProducts.slice(0, 6).map(p => (
+            {filteredRelated.map(p => (
               <Link key={p.id} href={`/product/${p.id}`} className="bg-gray-50 rounded overflow-hidden">
                 <div className="relative aspect-square">
                   <Image src={p.images[0]} alt={p.title} fill className="object-cover" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '@/components/Header';
@@ -8,19 +8,26 @@ import CategoryBar from '@/components/CategoryBar';
 import ProductCard from '@/components/ProductCard';
 import VideoFeed from '@/components/VideoFeed';
 import VideoReelButton from '@/components/VideoReelButton';
-import { products, categories, videos } from '@/data/products';
+import { useProducts, useCategories } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
-
-const ITEMS_PER_PAGE = 20;
+import { videos } from '@/data/products';
 
 export default function Home() {
   const [showVideoFeed, setShowVideoFeed] = useState(false);
   const [initialVideoIndex, setInitialVideoIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState('1');
-  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
-  const [isLoading, setIsLoading] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const { totalItems, setIsCartOpen } = useCart();
+
+  // Use hooks for data fetching
+  const { products, loading, hasMore, loadMore } = useProducts({
+    category: activeCategory,
+    limit: 20,
+  });
+  const { categories, loading: categoriesLoading } = useCategories();
+
+  // Hot products (group buy or flash sale)
+  const hotProducts = products.filter(item => item.isGroupBuy || item.isFlashSale).slice(0, 10);
 
   const handleVideoClick = (productId: string) => {
     const videoIndex = videos.findIndex(v => v.productId === productId);
@@ -30,31 +37,11 @@ export default function Home() {
     }
   };
 
-  const filteredProducts = activeCategory === '1'
-    ? products
-    : products.filter(item => item.categoryId === activeCategory);
-
-  const hotProducts = products.filter(item => item.isGroupBuy || item.isFlashSale).slice(0, 10);
-  const displayedProducts = filteredProducts.slice(0, displayCount);
-  const hasMore = displayCount < filteredProducts.length;
-
-  useEffect(() => {
-    setDisplayCount(ITEMS_PER_PAGE);
-  }, [activeCategory]);
-
-  const loadMore = useCallback(() => {
-    if (isLoading || !hasMore) return;
-    setIsLoading(true);
-    setTimeout(() => {
-      setDisplayCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredProducts.length));
-      setIsLoading(false);
-    }, 300);
-  }, [isLoading, hasMore, filteredProducts.length]);
-
+  // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
+        if (entries[0].isIntersecting && hasMore && !loading) {
           loadMore();
         }
       },
@@ -64,7 +51,7 @@ export default function Home() {
       observer.observe(loadMoreRef.current);
     }
     return () => observer.disconnect();
-  }, [hasMore, isLoading, loadMore]);
+  }, [hasMore, loading, loadMore]);
 
   return (
     <main className="min-h-screen bg-gray-100">
@@ -99,7 +86,7 @@ export default function Home() {
 
         <div className="flex gap-1 overflow-x-auto pb-1 -mx-1.5 px-1.5 scrollbar-hide">
           {[...products]
-            .sort((a, b) => (b.views + b.likes * 10) - (a.views + a.likes * 10))
+            .sort((a, b) => ((b.views || 0) + (b.likes || 0) * 10) - ((a.views || 0) + (a.likes || 0) * 10))
             .slice(0, 12)
             .map((item) => (
               <Link key={item.id} href={`/product/${item.id}`} className="flex-shrink-0">
@@ -174,7 +161,7 @@ export default function Home() {
         <div className="flex items-center justify-between mb-1.5 py-1 bg-white rounded px-2">
           <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
             🛍️ {activeCategory === '1' ? 'Баары' : categories.find(c => c.id === activeCategory)?.name}
-            <span className="text-[10px] font-normal text-gray-400">({filteredProducts.length})</span>
+            <span className="text-[10px] font-normal text-gray-400">({products.length})</span>
           </h3>
           <div className="flex items-center gap-1">
             <button className="px-2 py-0.5 text-[10px] bg-orange-500 text-white rounded">Баары</button>
@@ -184,29 +171,43 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-2 gap-1">
-          {displayedProducts.map((item, index) => (
-            <div key={item.id} className="animate-fadeIn" style={{ animationDelay: `${Math.min(index, 20) * 30}ms` }}>
-              <ProductCard
-                product={item}
-                onVideoClick={item.videoUrl ? (e) => { e?.preventDefault(); handleVideoClick(item.id); } : undefined}
-              />
-            </div>
-          ))}
+          {loading && products.length === 0 ? (
+            // Loading skeleton
+            Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="bg-white rounded-lg overflow-hidden border border-gray-100 animate-pulse">
+                <div className="aspect-square bg-gray-200" />
+                <div className="p-2 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  <div className="h-4 bg-gray-200 rounded w-1/3" />
+                </div>
+              </div>
+            ))
+          ) : (
+            products.map((item, index) => (
+              <div key={item.id} className="animate-fadeIn" style={{ animationDelay: `${Math.min(index, 20) * 30}ms` }}>
+                <ProductCard
+                  product={item}
+                  onVideoClick={item.videoUrl ? (e) => { e?.preventDefault(); handleVideoClick(item.id); } : undefined}
+                />
+              </div>
+            ))
+          )}
         </div>
 
         {/* Infinite Scroll */}
         <div ref={loadMoreRef} className="flex flex-col items-center mt-2 pb-2">
-          {isLoading && (
+          {loading && products.length > 0 && (
             <div className="flex items-center gap-2 py-2">
               <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
               <span className="text-gray-500 text-[10px]">Жүктөлүүдө...</span>
             </div>
           )}
-          {hasMore && !isLoading && (
-            <div className="text-gray-400 text-[10px] py-2">{displayCount} / {filteredProducts.length}</div>
+          {hasMore && !loading && (
+            <div className="text-gray-400 text-[10px] py-2">Дагы жүктөө...</div>
           )}
-          {!hasMore && filteredProducts.length > 0 && (
-            <div className="text-gray-400 text-[10px] py-2">Баары жүктөлдү ({filteredProducts.length})</div>
+          {!hasMore && products.length > 0 && (
+            <div className="text-gray-400 text-[10px] py-2">Баары жүктөлдү ({products.length})</div>
           )}
         </div>
       </div>
