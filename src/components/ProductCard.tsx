@@ -96,50 +96,48 @@ export default function ProductCard({ product, onVideoClick }: ProductCardProps)
         </div>
 
         {/* Content */}
-        <div className="p-1.5">
-          <h3 className="text-[10px] font-medium text-gray-900 line-clamp-2 min-h-[26px] leading-tight">{product.title}</h3>
+        <div className="p-2">
+          <h3 className="text-xs font-medium text-gray-900 line-clamp-2 min-h-[32px] leading-snug">{product.title}</h3>
 
           {/* Brand & Shop */}
-          <div className="flex items-center gap-1 mt-0.5">
+          <div className="flex items-center gap-1">
             {product.brand && (
-              <span className="text-[8px] font-medium text-blue-700 bg-blue-50 px-1 rounded">{product.brand}</span>
+              <span className="text-[10px] font-medium text-blue-700 bg-blue-50 px-1 rounded">{product.brand}</span>
             )}
-            <span className="text-[7px] text-gray-400 truncate">{product.shop.name}</span>
+            <span className="text-[9px] text-gray-400 truncate">{product.shop.name}</span>
           </div>
 
           {/* Price */}
-          <div className="flex items-end justify-between mt-1">
+          <div className="flex items-end justify-between">
             <div className="flex items-baseline gap-0.5">
-              <span className="text-[8px] text-red-600">¥</span>
-              <span className="text-sm font-bold text-red-600">
+              <span className="text-[10px] text-red-600">¥</span>
+              <span className="text-base font-bold text-red-600">
                 {formatPrice(product.isGroupBuy && product.groupBuyPrice ? product.groupBuyPrice : product.price)}
               </span>
               {product.originalPrice && (
-                <span className="text-[8px] text-gray-400 line-through ml-0.5">¥{formatPrice(product.originalPrice)}</span>
+                <span className="text-[10px] text-gray-400 line-through ml-0.5">¥{formatPrice(product.originalPrice)}</span>
               )}
             </div>
             {product.isGroupBuy && (
-              <span className="text-[7px] text-orange-600 font-medium bg-orange-50 px-1 rounded">{product.groupBuyMinPeople}+</span>
+              <span className="text-[9px] text-orange-600 font-medium bg-orange-50 px-1 rounded">{product.groupBuyMinPeople}+</span>
             )}
           </div>
 
           {/* Features */}
-          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+          <div className="flex items-center gap-1 flex-wrap">
             {product.hasFreeship && (
-              <span className="text-[7px] text-teal-600 font-medium bg-teal-50 px-1 rounded">🚚 Акысыз</span>
+              <span className="text-[9px] text-teal-600 font-medium bg-teal-50 px-1 rounded">🚚 Акысыз</span>
             )}
             {product.colors && product.colors.length > 1 && (
-              <span className="text-[7px] text-purple-600 bg-purple-50 px-1 rounded">{product.colors.length} түс</span>
+              <span className="text-[9px] text-purple-600 bg-purple-50 px-1 rounded">{product.colors.length} түс</span>
             )}
           </div>
 
           {/* Stats */}
-          <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-50">
-            <div className="flex items-center gap-0.5 text-[7px] text-gray-500">
-              <span>⭐{product.rating}</span>
-              <span className="text-gray-300">|</span>
-              <span>{formatSold(product.soldCount)} сатылды</span>
-            </div>
+          <div className="flex items-center gap-1 text-[9px] text-gray-500">
+            <span>⭐{product.rating}</span>
+            <span className="text-gray-300">|</span>
+            <span>{formatSold(product.soldCount)} сатылды</span>
           </div>
         </div>
       </div>
