@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { shops, products } from '@/data/products';
-import ChatBot from '@/components/ChatBot';
+import ContactSellerButton from '@/components/ContactSellerButton';
 
 export default function ShopPage() {
   const params = useParams();
@@ -18,7 +18,6 @@ export default function ShopPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'hot' | 'reviews'>('all');
   const [isFollowing, setIsFollowing] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'sales' | 'price-asc' | 'price-desc' | 'new'>('default');
-  const [showChat, setShowChat] = useState(false);
 
   if (!shop) {
     return (
@@ -106,9 +105,7 @@ export default function ShopPage() {
             >
               {isFollowing ? '✓ Жазылдыңыз' : '+ Жазылуу'}
             </button>
-            <button onClick={() => setShowChat(true)} className="text-xs px-2 py-1 rounded-full border border-gray-300 text-gray-600">
-              💬 Чат
-            </button>
+            <ContactSellerButton shopId={shop.id} variant="button" className="text-xs" />
           </div>
 
           {/* Guarantee badge */}
@@ -254,12 +251,7 @@ export default function ShopPage() {
           </svg>
           <span className="text-[10px] text-gray-500">{isFollowing ? 'Сакталды' : 'Сактоо'}</span>
         </button>
-        <button onClick={() => setShowChat(true)} className="flex flex-col items-center px-3">
-          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <span className="text-[10px] text-gray-500">Чат</span>
-        </button>
+        <ContactSellerButton shopId={shop.id} variant="icon" />
         <button
           onClick={() => setIsFollowing(!isFollowing)}
           className={`flex-1 py-2.5 rounded-full text-sm font-medium ${isFollowing ? 'bg-gray-200 text-gray-600' : 'bg-red-500 text-white'}`}
@@ -268,8 +260,6 @@ export default function ShopPage() {
         </button>
       </div>
 
-      {/* ChatBot */}
-      <ChatBot isOpen={showChat} onClose={() => setShowChat(false)} shopName={shop.name} />
     </div>
   );
 }
