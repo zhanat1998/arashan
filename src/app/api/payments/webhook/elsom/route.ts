@@ -1,93 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-// POST /api/payments/webhook/elsom - Elsom payment callback
+// POST /api/payments/webhook/elsom - Elsom webhook
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
 
-  const body = await request.json();
-  const { payment_id, status, order_id, amount } = body;
+  try {
+    const body = await request.json();
+    const apiKey = request.headers.get('x-api-key');
 
-  // Verify request is from Elsom (in production, check IP or signature)
-  const apiKey = process.env.ELSOM_SECRET_KEY;
-  const requestApiKey = request.headers.get('X-Api-Key');
+    // Verify API key in production
+    const secretKey = process.env.ELSOM_SECRET_KEY;
+    if (secretKey && apiKey !== secretKey) {
+      console.error('Elsom webhook: Invalid API key');
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+    }
 
-  if (apiKey && requestApiKey !== apiKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    const { payment_id, status } = body;
 
-  // Find payment
-  const { data: payment, error } = await supabase
-    .from('payments')
-    .select('*, order:orders(*)')
-    .eq('provider_response->transactionId', payment_id)
-    .single();
+    // Find payment by provider_id
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .select('*, orders(*)')
+      .eq('provider_id', payment_id)
+      .single();
 
-  if (error || !payment) {
-    console.error('Payment not found:', payment_id);
-    return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
-  }
+    if (paymentError || !payment) {
+      console.error('Elsom webhook: Payment not found', payment_id);
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
 
-  // Map Elsom status to our status
-  const statusMap: Record<string, string> = {
-    'COMPLETED': 'completed',
-    'SUCCESS': 'completed',
-    'FAILED': 'failed',
-    'CANCELLED': 'failed',
-    'PENDING': 'processing'
-  };
+    // Map Elsom status to our status
+    let paymentStatus: string;
+    let orderStatus: string;
 
-  const newStatus = statusMap[status] || 'failed';
+    switch (status) {
+      case 'SUCCESS':
+      case 'PAID':
+        paymentStatus = 'completed';
+        orderStatus = 'paid';
+        break;
+      case 'FAILED':
+      case 'CANCELLED':
+      case 'EXPIRED':
+        paymentStatus = 'failed';
+        orderStatus = 'payment_failed';
+        break;
+      case 'PENDING':
+      case 'PROCESSING':
+        paymentStatus = 'processing';
+        orderStatus = 'awaiting_payment';
+        break;
+      default:
+        paymentStatus = 'pending';
+        orderStatus = 'awaiting_payment';
+    }
 
-  // Update payment
-  await supabase
-    .from('payments')
-    .update({
-      status: newStatus,
-      provider_id: payment_id,
-      provider_response: { ...payment.provider_response, webhook: body },
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', payment.id);
+    // Update payment
+    await supabase
+      .from('payments')
+      .update({
+        status: paymentStatus,
+        provider_response: body,
+        paid_at: paymentStatus === 'completed' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', payment.id);
 
-  // Update order if completed
-  if (newStatus === 'completed') {
+    // Update order
     await supabase
       .from('orders')
       .update({
-        status: 'paid',
-        payment_method: 'elsom',
-        payment_id: payment.id,
+        status: orderStatus,
+        payment_status: paymentStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', payment.order_id);
 
-    // Update sales counts
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('product_id, quantity')
-      .eq('order_id', payment.order_id);
+    console.log(`Elsom webhook: Payment ${payment.id} updated to ${paymentStatus}`);
 
-    if (orderItems) {
-      for (const item of orderItems) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('sold_count, stock')
-          .eq('id', item.product_id)
-          .single();
-
-        if (product) {
-          await supabase
-            .from('products')
-            .update({
-              sold_count: product.sold_count + item.quantity,
-              stock: Math.max(0, product.stock - item.quantity)
-            })
-            .eq('id', item.product_id);
-        }
-      }
-    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Elsom webhook error:', error);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, status: newStatus });
 }

@@ -1,31 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import crypto from 'crypto';
 
-// POST /api/payments/webhook/mbank - Mbank webhook
+// POST /api/payments/webhook/odengi - O!Dengi webhook
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
 
   try {
     const body = await request.json();
-    const signature = request.headers.get('x-signature');
-    const timestamp = request.headers.get('x-timestamp');
+    const authHeader = request.headers.get('authorization');
 
-    // Verify signature in production
-    const secretKey = process.env.MBANK_SECRET_KEY;
-    if (secretKey && signature) {
-      const expectedSignature = crypto
-        .createHmac('sha256', secretKey)
-        .update(`${body.transaction_id}${body.status}${timestamp}`)
-        .digest('hex');
+    // Verify Basic auth in production
+    const merchantId = process.env.ODENGI_MERCHANT_ID;
+    const secretKey = process.env.ODENGI_SECRET_KEY;
 
-      if (signature !== expectedSignature) {
-        console.error('Mbank webhook: Invalid signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    if (merchantId && secretKey && authHeader) {
+      const expectedAuth = `Basic ${Buffer.from(`${merchantId}:${secretKey}`).toString('base64')}`;
+      if (authHeader !== expectedAuth) {
+        console.error('O!Dengi webhook: Invalid auth');
+        return NextResponse.json({ error: 'Invalid auth' }, { status: 401 });
       }
     }
 
-    const { transaction_id, status } = body;
+    const { transaction_id, status, order_id, amount, phone } = body;
 
     // Find payment by provider_id
     const { data: payment, error: paymentError } = await supabase
@@ -35,22 +31,23 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (paymentError || !payment) {
-      console.error('Mbank webhook: Payment not found', transaction_id);
+      console.error('O!Dengi webhook: Payment not found', transaction_id);
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
-    // Map Mbank status to our status
+    // Map O!Dengi status to our status
     let paymentStatus: string;
     let orderStatus: string;
 
     switch (status) {
-      case 'success':
       case 'completed':
+      case 'success':
         paymentStatus = 'completed';
         orderStatus = 'paid';
         break;
       case 'failed':
-      case 'cancelled':
+      case 'rejected':
+      case 'expired':
         paymentStatus = 'failed';
         orderStatus = 'payment_failed';
         break;
@@ -64,12 +61,13 @@ export async function POST(request: NextRequest) {
         orderStatus = 'awaiting_payment';
     }
 
-    // Update payment
+    // Update payment with phone info
     await supabase
       .from('payments')
       .update({
         status: paymentStatus,
         provider_response: body,
+        metadata: { ...payment.metadata, phone },
         paid_at: paymentStatus === 'completed' ? new Date().toISOString() : null,
         updated_at: new Date().toISOString()
       })
@@ -85,11 +83,28 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', payment.order_id);
 
-    console.log(`Mbank webhook: Payment ${payment.id} updated to ${paymentStatus}`);
+    // If payment completed, update product stock
+    if (paymentStatus === 'completed') {
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('product_id, quantity')
+        .eq('order_id', payment.order_id);
+
+      if (orderItems) {
+        for (const item of orderItems) {
+          await supabase.rpc('decrement_stock', {
+            p_product_id: item.product_id,
+            p_quantity: item.quantity
+          });
+        }
+      }
+    }
+
+    console.log(`O!Dengi webhook: Payment ${payment.id} updated to ${paymentStatus}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Mbank webhook error:', error);
+    console.error('O!Dengi webhook error:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface FormData {
   name: string;
@@ -15,13 +16,16 @@ interface FormData {
   apartment: string;
   comment: string;
   deliveryMethod: 'courier' | 'pickup' | 'post';
-  paymentMethod: 'card' | 'cash' | 'installment';
+  paymentMethod: 'mbank' | 'elsom' | 'odengi' | 'balance' | 'cash';
 }
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { items, totalPrice, totalDiscount, clearCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userCoins, setUserCoins] = useState(0);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState<FormData>({
     name: '',
     phone: '',
@@ -31,8 +35,22 @@ export default function CheckoutPage() {
     apartment: '',
     comment: '',
     deliveryMethod: 'courier',
-    paymentMethod: 'card',
+    paymentMethod: 'mbank',
   });
+
+  // Fetch user coins
+  useEffect(() => {
+    if (user) {
+      fetch('/api/user/profile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.user?.coins) {
+            setUserCoins(data.user.coins);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [user]);
 
   const formatPrice = (price: number) => price.toLocaleString('ru-RU');
 
@@ -42,19 +60,100 @@ export default function CheckoutPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError('');
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // 1. Create order first
+      const orderResponse = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            product_id: item.product.id,
+            quantity: item.quantity,
+            price: item.product.price,
+            selected_color: item.selectedColor,
+          })),
+          shipping_address: {
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            city: formData.city,
+            address: formData.address,
+            apartment: formData.apartment,
+          },
+          delivery_method: formData.deliveryMethod,
+          delivery_price: deliveryPrice,
+          comment: formData.comment,
+        }),
+      });
 
-    // Clear cart and redirect to success page
-    clearCart();
-    router.push('/checkout/success');
+      const orderData = await orderResponse.json();
+
+      if (!orderResponse.ok) {
+        throw new Error(orderData.error || 'Буйрутма түзүүдө ката');
+      }
+
+      // 2. Create payment
+      const paymentResponse = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderData.order.id,
+          method: formData.paymentMethod,
+          returnUrl: `${window.location.origin}/checkout/success`,
+        }),
+      });
+
+      const paymentData = await paymentResponse.json();
+
+      if (!paymentResponse.ok) {
+        throw new Error(paymentData.error || 'Төлөм түзүүдө ката');
+      }
+
+      // 3. Handle payment result
+      if (paymentData.success) {
+        // Balance or cash payment - completed instantly
+        clearCart();
+        router.push(paymentData.redirectUrl);
+      } else if (paymentData.paymentUrl) {
+        // Redirect to payment page with QR/instructions
+        router.push(`/checkout/pay?payment=${paymentData.paymentId}&provider=${formData.paymentMethod}`);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">Кирүү керек</h1>
+          <p className="text-gray-500 mb-6">Буйрутма берүү үчүн аккаунтка кириңиз</p>
+          <Link
+            href="/auth/login"
+            className="inline-block px-6 py-3 bg-[var(--pdd-red)] text-white font-medium rounded-full hover:bg-[var(--pdd-red-dark)] transition-colors"
+          >
+            Кирүү
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -96,6 +195,12 @@ export default function CheckoutPage() {
       </header>
 
       <form onSubmit={handleSubmit} className="max-w-7xl mx-auto px-4 py-6">
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+            {error}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Forms */}
           <div className="lg:col-span-2 space-y-6">
@@ -240,7 +345,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-800">Курьер менен</span>
                       <span className={`font-bold ${totalPrice >= 5000 ? 'text-green-600' : 'text-gray-800'}`}>
-                        {totalPrice >= 5000 ? 'Бекер' : '₽500'}
+                        {totalPrice >= 5000 ? 'Бекер' : '500 сом'}
                       </span>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">2-5 күн ичинде жеткирилет</p>
@@ -277,7 +382,7 @@ export default function CheckoutPage() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-800">Почта менен</span>
-                      <span className="font-bold text-gray-800">₽300</span>
+                      <span className="font-bold text-gray-800">300 сом</span>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">7-14 күн, Кыргызстан боюнча</p>
                   </div>
@@ -292,25 +397,102 @@ export default function CheckoutPage() {
                 Төлөм ыкмасы
               </h2>
               <div className="space-y-3">
-                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'card' ? 'border-[var(--pdd-red)] bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                {/* Mbank */}
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'mbank' ? 'border-[var(--pdd-red)] bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="card"
-                    checked={formData.paymentMethod === 'card'}
+                    value="mbank"
+                    checked={formData.paymentMethod === 'mbank'}
                     onChange={handleInputChange}
                     className="w-5 h-5 text-[var(--pdd-red)]"
                   />
                   <div className="flex-1">
-                    <span className="font-medium text-gray-800">Банк картасы</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-10 h-6 bg-blue-600 rounded text-white text-[8px] font-bold flex items-center justify-center">VISA</div>
-                      <div className="w-10 h-6 bg-red-500 rounded text-white text-[8px] font-bold flex items-center justify-center">MC</div>
-                      <div className="w-10 h-6 bg-green-600 rounded text-white text-[8px] font-bold flex items-center justify-center">ЭЛКАРТ</div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">Mbank</span>
+                      </div>
+                      <span className="font-medium text-gray-800">Mbank</span>
                     </div>
+                    <p className="text-sm text-gray-500 mt-1">QR код же Mbank колдонмосу</p>
                   </div>
                 </label>
 
+                {/* Elsom */}
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'elsom' ? 'border-[var(--pdd-red)] bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="elsom"
+                    checked={formData.paymentMethod === 'elsom'}
+                    onChange={handleInputChange}
+                    className="w-5 h-5 text-[var(--pdd-red)]"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">Elsom</span>
+                      </div>
+                      <span className="font-medium text-gray-800">Elsom</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">Elsom электрондук капчык</p>
+                  </div>
+                </label>
+
+                {/* O!Dengi */}
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'odengi' ? 'border-[var(--pdd-red)] bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="odengi"
+                    checked={formData.paymentMethod === 'odengi'}
+                    onChange={handleInputChange}
+                    className="w-5 h-5 text-[var(--pdd-red)]"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">O!</span>
+                      </div>
+                      <span className="font-medium text-gray-800">O!Dengi</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">USSD же O!Dengi колдонмосу</p>
+                  </div>
+                </label>
+
+                {/* Balance */}
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'balance' ? 'border-[var(--pdd-red)] bg-red-50' : 'border-gray-200 hover:border-gray-300'} ${userCoins < finalTotal ? 'opacity-50' : ''}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="balance"
+                    checked={formData.paymentMethod === 'balance'}
+                    onChange={handleInputChange}
+                    disabled={userCoins < finalTotal}
+                    className="w-5 h-5 text-[var(--pdd-red)]"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-8 bg-gradient-to-r from-yellow-400 to-orange-400 rounded flex items-center justify-center">
+                          <span className="text-lg">🪙</span>
+                        </div>
+                        <span className="font-medium text-gray-800">Баланс</span>
+                      </div>
+                      <span className={`text-sm font-medium ${userCoins >= finalTotal ? 'text-green-600' : 'text-red-500'}`}>
+                        {formatPrice(userCoins)} сом
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {userCoins >= finalTotal
+                        ? 'Жетиштүү каражат бар'
+                        : `Дагы ${formatPrice(finalTotal - userCoins)} сом керек`
+                      }
+                    </p>
+                  </div>
+                </label>
+
+                {/* Cash */}
                 <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'cash' ? 'border-[var(--pdd-red)] bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
                   <input
                     type="radio"
@@ -321,26 +503,13 @@ export default function CheckoutPage() {
                     className="w-5 h-5 text-[var(--pdd-red)]"
                   />
                   <div className="flex-1">
-                    <span className="font-medium text-gray-800">Накталай</span>
-                    <p className="text-sm text-gray-500 mt-1">Курьерге же алып кетүүдө</p>
-                  </div>
-                </label>
-
-                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'installment' ? 'border-[var(--pdd-red)] bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="installment"
-                    checked={formData.paymentMethod === 'installment'}
-                    onChange={handleInputChange}
-                    className="w-5 h-5 text-[var(--pdd-red)]"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-800">Бөлүп төлөө</span>
-                      <span className="px-2 py-0.5 bg-yellow-400 text-yellow-800 text-xs font-bold rounded">0%</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-8 bg-gray-600 rounded flex items-center justify-center">
+                        <span className="text-lg">💵</span>
+                      </div>
+                      <span className="font-medium text-gray-800">Накталай</span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">3-12 ай, пайызсыз</p>
+                    <p className="text-sm text-gray-500 mt-1">Курьерге же алып кетүүдө</p>
                   </div>
                 </label>
               </div>
@@ -373,7 +542,7 @@ export default function CheckoutPage() {
                         <p className="text-xs text-gray-500">{item.selectedColor}</p>
                       )}
                       <p className="text-sm font-bold text-[var(--pdd-red)] mt-1">
-                        ₽{formatPrice(item.product.price * item.quantity)}
+                        {formatPrice(item.product.price * item.quantity)} сом
                       </p>
                     </div>
                   </div>
@@ -384,23 +553,23 @@ export default function CheckoutPage() {
               <div className="border-t border-gray-100 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Товарлар ({items.reduce((sum, item) => sum + item.quantity, 0)})</span>
-                  <span className="text-gray-800">₽{formatPrice(totalPrice + totalDiscount)}</span>
+                  <span className="text-gray-800">{formatPrice(totalPrice + totalDiscount)} сом</span>
                 </div>
                 {totalDiscount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Скидка</span>
-                    <span className="text-green-600">-₽{formatPrice(totalDiscount)}</span>
+                    <span className="text-green-600">-{formatPrice(totalDiscount)} сом</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Жеткирүү</span>
                   <span className={deliveryPrice === 0 ? 'text-green-600' : 'text-gray-800'}>
-                    {deliveryPrice === 0 ? 'Бекер' : `₽${formatPrice(deliveryPrice)}`}
+                    {deliveryPrice === 0 ? 'Бекер' : `${formatPrice(deliveryPrice)} сом`}
                   </span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-gray-100">
                   <span className="text-lg font-bold text-gray-800">Жалпы</span>
-                  <span className="text-2xl font-bold text-[var(--pdd-red)]">₽{formatPrice(finalTotal)}</span>
+                  <span className="text-2xl font-bold text-[var(--pdd-red)]">{formatPrice(finalTotal)} сом</span>
                 </div>
               </div>
 
@@ -420,7 +589,7 @@ export default function CheckoutPage() {
                   </>
                 ) : (
                   <>
-                    Буйрутма берүү
+                    Төлөөгө өтүү
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
@@ -451,7 +620,7 @@ export default function CheckoutPage() {
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 lg:hidden z-40">
           <div className="flex items-center justify-between mb-3">
             <span className="text-gray-600">Жалпы:</span>
-            <span className="text-2xl font-bold text-[var(--pdd-red)]">₽{formatPrice(finalTotal)}</span>
+            <span className="text-2xl font-bold text-[var(--pdd-red)]">{formatPrice(finalTotal)} сом</span>
           </div>
           <button
             type="submit"
@@ -467,7 +636,7 @@ export default function CheckoutPage() {
                 Жүктөлүүдө...
               </>
             ) : (
-              'Буйрутма берүү'
+              'Төлөөгө өтүү'
             )}
           </button>
         </div>
