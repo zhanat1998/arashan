@@ -1,9 +1,9 @@
 'use client';
 
 import { Admin, Resource, ListGuesser, EditGuesser, ShowGuesser } from 'react-admin';
-import { createClient } from '@supabase/supabase-js';
 import { supabaseDataProvider } from 'ra-supabase';
 import { useState, useEffect } from 'react';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
 // Колдонуучулар
 import { UserList } from './resources/UserList';
@@ -18,10 +18,10 @@ import { ShopList } from './resources/ShopList';
 // Продукттар
 import { ProductList } from './resources/ProductList';
 
-// Supabase клиент
+// Supabase клиент - долбоордун client'ин колдонуу
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = getSupabaseClient();
 
 // Data Provider
 const dataProvider = supabaseDataProvider({
@@ -151,37 +151,76 @@ const i18nProvider = {
 
 export default function AdminApp() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
 
   useEffect(() => {
-    checkAdminAccess();
-  }, []);
+    let isMounted = true;
 
-  const checkAdminAccess = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
+    const checkAdminAccess = async () => {
+      // Admin email'дер
+      const adminEmails = [
+        'zhanatbekzheenbaev81@gmail.com',
+        'zhanatbekzheenbaev54@gmail.com',
+        'admin@arashan.kg'
+      ];
 
-      if (!user) {
+      try {
+        // Session текшерүү - жөнөкөй жол
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
+
+        if (error) {
+          console.log('Session error:', error.message);
+          setIsLoggedIn(false);
+          setIsAdmin(false);
+          return;
+        }
+
+        if (!session?.user) {
+          console.log('❌ Session жок');
+          setIsLoggedIn(false);
+          setIsAdmin(false);
+          return;
+        }
+
+        const user = session.user;
+        console.log('✅ User:', user.email);
+
+        setIsLoggedIn(true);
+        setUserEmail(user.email || '');
+
+        // Email текшерүү
+        if (adminEmails.includes(user.email || '')) {
+          console.log('✅ Admin!');
+          setIsAdmin(true);
+        } else {
+          console.log('❌ Admin эмес');
+          setIsAdmin(false);
+        }
+      } catch (error: any) {
+        if (!isMounted) return;
+        // AbortError игнордоо
+        if (error?.name === 'AbortError') {
+          console.log('Request aborted, retrying...');
+          setTimeout(checkAdminAccess, 500);
+          return;
+        }
+        console.error('Admin check error:', error);
+        setIsLoggedIn(false);
         setIsAdmin(false);
-        return;
       }
+    };
 
-      // Колдонуучунун ролун текшерүү
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role, email')
-        .eq('id', user.id)
-        .single();
+    // Бир аз күтүү - hydration үчүн
+    const timer = setTimeout(checkAdminAccess, 100);
 
-      // Admin email'дерин текшерүү (же role === 'admin')
-      const adminEmails = ['zhanatbekzheenbaev81@gmail.com', 'admin@arashan.kg'];
-      const isAdminUser = profile?.role === 'admin' || adminEmails.includes(profile?.email || '');
-
-      setIsAdmin(isAdminUser);
-    } catch (error) {
-      console.error('Admin check error:', error);
-      setIsAdmin(false);
-    }
-  };
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
 
   // Жүктөлүүдө
   if (isAdmin === null) {
@@ -190,6 +229,31 @@ export default function AdminApp() {
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Текшерилүүдө...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Логин кылган эмес
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Кирүү талап кылынат</h1>
+          <p className="text-gray-600 mb-6">
+            Админ панелге кирүү үчүн биринчи аккаунтуңузга кириңиз.
+          </p>
+          <a
+            href="/auth/login"
+            className="inline-block px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+          >
+            Кирүү
+          </a>
         </div>
       </div>
     );
@@ -206,8 +270,11 @@ export default function AdminApp() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Кирүү тыюу салынган</h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-4">
             Бул барак админдер үчүн гана. Сизде жетиштүү укук жок.
+          </p>
+          <p className="text-sm text-gray-400 mb-6">
+            Сиздин email: {userEmail}
           </p>
           <a
             href="/"
