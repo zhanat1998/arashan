@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle, isReady } = useAuth();
+  const { signInWithGoogle, isReady, refreshUser } = useAuth();
 
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
 
   // Handle hydration
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setAttemptsRemaining(null);
 
     if (!email || !password) {
       setError('Бардык талааларды толтуруңуз');
@@ -35,7 +37,35 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      // Коопсуз API колдонуу
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Rate limit кетсе
+        if (res.status === 429) {
+          setError(data.error || 'Өтө көп аракет');
+          return;
+        }
+
+        // Калган аракеттерди көрсөтүү
+        if (data.attemptsRemaining !== undefined) {
+          setAttemptsRemaining(data.attemptsRemaining);
+        }
+
+        throw new Error(data.error || 'Кирүүдө ката кетти');
+      }
+
+      // Ийгиликтүү - колдонуучуну жаңыртуу
+      if (refreshUser) {
+        await refreshUser();
+      }
+
       router.push('/');
     } catch (err: any) {
       setError(err.message || 'Кирүүдө ката кетти');
@@ -65,11 +95,18 @@ export default function LoginPage() {
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-          <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            {error}
+          </div>
+          {attemptsRemaining !== null && attemptsRemaining <= 3 && (
+            <p className="mt-1 text-xs text-red-500">
+              Калган аракет: {attemptsRemaining}. Көп жаңылсаңыз блоктолосуз.
+            </p>
+          )}
         </div>
       )}
 

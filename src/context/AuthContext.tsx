@@ -23,6 +23,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -197,6 +198,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Колдонуучуну кайра жүктөө
+  const refreshUser = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        await fetchProfile(session.user.id);
+      }
+    } catch (err) {
+      console.error('Refresh user error:', err);
+    }
+  }, [supabase, fetchProfile]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -209,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         signOut,
         updateProfile,
+        refreshUser,
       }}
     >
       {children}
