@@ -47,9 +47,22 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // Катаны туура алуу
+        let errorMessage = 'Кирүүдө ката кетти';
+
+        if (data.error) {
+          if (typeof data.error === 'string') {
+            errorMessage = data.error;
+          } else if (typeof data.error === 'object') {
+            // Объект болсо биринчи катаны алуу
+            const firstError = Object.values(data.error)[0];
+            errorMessage = typeof firstError === 'string' ? firstError : 'Кирүүдө ката кетти';
+          }
+        }
+
         // Rate limit кетсе
         if (res.status === 429) {
-          setError(data.error || 'Өтө көп аракет');
+          setError(errorMessage);
           return;
         }
 
@@ -58,7 +71,8 @@ export default function LoginPage() {
           setAttemptsRemaining(data.attemptsRemaining);
         }
 
-        throw new Error(data.error || 'Кирүүдө ката кетти');
+        setError(errorMessage);
+        return;
       }
 
       // Ийгиликтүү - колдонуучуну жаңыртуу
@@ -94,7 +108,7 @@ export default function LoginPage() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Error Message */}
-      {error && (
+      {error && typeof error === 'string' && (
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
           <div className="flex items-center gap-2">
             <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">

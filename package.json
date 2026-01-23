@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:ai": "npx tsx scripts/ai-tester.ts",
+    "test:security": "npx tsx scripts/security-tester.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.971.0",

@@ -25,9 +25,9 @@ interface RateLimitConfig {
 // Демейки конфигурациялар
 export const RATE_LIMIT_CONFIGS = {
   login: {
-    maxAttempts: 5,
-    windowMs: 15 * 60 * 1000,      // 15 мүнөт
-    blockDurationMs: 30 * 60 * 1000 // 30 мүнөт блок
+    maxAttempts: 3,                  // 3 аракет
+    windowMs: 15 * 60 * 1000,        // 15 мүнөт
+    blockDurationMs: 30 * 60 * 1000  // 30 мүнөт блок
   },
   register: {
     maxAttempts: 3,

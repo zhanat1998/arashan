@@ -171,13 +171,15 @@ export default function RegisterPage() {
   const handleSendOTP = async () => {
     if (!formData.phone || otpLoading) return;
 
-    // Телефон валидация
-    const cleanPhone = formData.phone.replace(/[\s\-\(\)]/g, '');
-    const phoneRegex = /^(\+996|996|0)?[0-9]{9}$/;
-    if (!phoneRegex.test(cleanPhone)) {
-      setErrors({ ...errors, phone: 'Туура эмес телефон номери' });
+    // Телефон валидация - 9 цифра керек
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 9) {
+      setErrors({ ...errors, phone: '9 цифра киргизиңиз' });
       return;
     }
+
+    // +996 кошуу
+    const fullPhone = '+996' + cleanPhone;
 
     setOtpLoading(true);
     setErrors({ ...errors, phone: '', otp: '' });
@@ -186,7 +188,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formData.phone })
+        body: JSON.stringify({ phone: fullPhone })
       });
 
       const data = await res.json();
@@ -215,11 +217,14 @@ export default function RegisterPage() {
     setOtpLoading(true);
     setErrors({ ...errors, otp: '' });
 
+    // +996 кошуу
+    const fullPhone = '+996' + formData.phone.replace(/\D/g, '');
+
     try {
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formData.phone, code: otpCode })
+        body: JSON.stringify({ phone: fullPhone, code: otpCode })
       });
 
       const data = await res.json();
@@ -259,6 +264,11 @@ export default function RegisterPage() {
     setErrors({});
 
     try {
+      // Телефон номерин +996 менен форматтоо
+      const phoneToSend = formData.phone.trim()
+        ? '+996' + formData.phone.replace(/\D/g, '')
+        : undefined;
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -266,7 +276,7 @@ export default function RegisterPage() {
           email: formData.email.trim().toLowerCase(),
           password: formData.password,
           fullName: formData.fullName.trim(),
-          phone: formData.phone.trim() || undefined,
+          phone: phoneToSend,
           role: wantToSell ? 'seller' : 'client'
         }),
       });
@@ -274,16 +284,42 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.error && typeof data.error === 'object') {
-          setErrors(data.error);
+        // Катаны туура иштетүү
+        if (data.error) {
+          if (typeof data.error === 'string') {
+            setErrors({ general: data.error });
+          } else if (typeof data.error === 'object') {
+            // Талаа боюнча каталар
+            const fieldErrors: Record<string, string> = {};
+            for (const [key, value] of Object.entries(data.error)) {
+              if (typeof value === 'string') {
+                fieldErrors[key] = value;
+              } else {
+                fieldErrors[key] = 'Ката бар';
+              }
+            }
+            // Эгер general жок болсо, биринчи катаны general кылуу
+            if (!fieldErrors.general && Object.keys(fieldErrors).length > 0) {
+              const firstKey = Object.keys(fieldErrors)[0];
+              fieldErrors.general = fieldErrors[firstKey];
+            }
+            setErrors(fieldErrors);
+          } else {
+            setErrors({ general: 'Катталууда ката кетти' });
+          }
         } else {
-          setErrors({ general: data.error || 'Катталууда ката кетти' });
+          setErrors({ general: 'Катталууда ката кетти' });
         }
         return;
       }
 
       // Ийгиликтүү - логин кылуу
-      await signUp(formData.email, formData.password, formData.fullName, formData.phone);
+      try {
+        await signUp(formData.email, formData.password, formData.fullName, phoneToSend);
+      } catch (signUpErr: any) {
+        // signUp катасын игнордоо - register API ийгиликтүү болду
+        console.log('SignUp after register:', signUpErr);
+      }
 
       if (wantToSell) {
         router.push('/seller/shop/create');
@@ -291,7 +327,8 @@ export default function RegisterPage() {
         router.push('/');
       }
     } catch (err: any) {
-      setErrors({ general: err.message || 'Катталууда ката кетти' });
+      const errorMessage = err?.message || 'Катталууда ката кетти';
+      setErrors({ general: typeof errorMessage === 'string' ? errorMessage : 'Катталууда ката кетти' });
     } finally {
       setLoading(false);
     }
@@ -300,7 +337,7 @@ export default function RegisterPage() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* General Error */}
-      {errors.general && (
+      {errors.general && typeof errors.general === 'string' && (
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
           <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -370,24 +407,27 @@ export default function RegisterPage() {
         </label>
         <div className="flex gap-2">
           <div className="relative flex-1">
+            {/* +996 prefix */}
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
+              <span className="text-gray-500 font-medium">+996</span>
             </div>
             <input
               type="tel"
               name="phone"
               value={formData.phone}
               onChange={(e) => {
-                handleChange(e);
+                // Сандарды гана кабыл алуу, максимум 9 цифра
+                const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+                setFormData({ ...formData, phone: value });
+                if (errors.phone) setErrors({ ...errors, phone: '' });
                 setPhoneVerified(false);
                 setOtpSent(false);
                 setOtpCode('');
               }}
-              placeholder="+996 XXX XXX XXX"
+              placeholder="XXX XXX XXX"
               disabled={phoneVerified}
-              className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all outline-none ${
+              maxLength={9}
+              className={`w-full pl-14 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all outline-none ${
                 errors.phone ? 'border-red-300 bg-red-50' :
                 phoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
               } ${phoneVerified ? 'opacity-75' : ''}`}
@@ -439,7 +479,7 @@ export default function RegisterPage() {
       {otpSent && !phoneVerified && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-sm text-blue-700 mb-3">
-            SMS код {formData.phone.slice(0, 8)}*** номерине жөнөтүлдү
+            SMS код +996 {formData.phone.slice(0, 6)}*** номерине жөнөтүлдү
           </p>
           <div className="flex gap-2">
             <input

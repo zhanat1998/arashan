@@ -149,43 +149,68 @@ export function getOTPTimeRemaining(identifier: string): number | null {
 }
 
 /**
- * SMS жөнөтүү (заглушка - чыныгы SMS провайдерди интеграциялоо керек)
+ * SMS жөнөтүү - SMSPRO.kg интеграциясы
  *
- * Кыргызстан үчүн SMS провайдерлер:
- * - SMSPRO.kg
- * - NikitaMobile
- * - PlayMobile
+ * .env.local файлына кошуңуз:
+ * SMSPRO_API_KEY=сиздин_api_ачкыч
+ * SMSPRO_SENDER=Arashan
  */
 export async function sendSMS(phone: string, message: string): Promise<boolean> {
-  // TODO: Чыныгы SMS провайдер интеграциясы
-  console.log(`[SMS] ${phone}: ${message}`);
-
-  // Демо режимде ар дайым ийгиликтүү
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[DEV] OTP code sent to ${phone}: ${message}`);
+  // Демо режимде консолго жазуу
+  if (process.env.NODE_ENV === 'development' && !process.env.SMSPRO_API_KEY) {
+    console.log('═'.repeat(50));
+    console.log(`📱 SMS DEMO MODE`);
+    console.log(`📞 Телефон: ${phone}`);
+    console.log(`💬 Билдирүү: ${message}`);
+    console.log('═'.repeat(50));
     return true;
   }
 
-  // Production'до SMS API чакыруу
-  try {
-    // Мисалы: SMSPRO.kg API
-    // const response = await fetch('https://api.smspro.kg/send', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.SMSPRO_API_KEY}`,
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify({
-    //     phone,
-    //     message,
-    //     sender: 'Arashan'
-    //   })
-    // });
-    // return response.ok;
+  // SMSPRO.kg API
+  const apiKey = process.env.SMSPRO_API_KEY;
+  const sender = process.env.SMSPRO_SENDER || 'Arashan';
 
-    return true; // Заглушка
+  if (!apiKey) {
+    console.error('SMSPRO_API_KEY .env файлында жок!');
+    // Development'те demo режимде иштейт
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEMO SMS] ${phone}: ${message}`);
+      return true;
+    }
+    return false;
+  }
+
+  try {
+    // Телефон форматын тазалоо (+996 болушу керек)
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+
+    const response = await fetch('https://api.smspro.kg/v2/sms/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messages: [{
+          recipient: cleanPhone,
+          message_id: `arashan_${Date.now()}`,
+          text: message,
+          originator: sender
+        }]
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      console.log(`[SMSPRO] SMS жөнөтүлдү: ${cleanPhone}`);
+      return true;
+    } else {
+      console.error('[SMSPRO] Ката:', data);
+      return false;
+    }
   } catch (error) {
-    console.error('SMS sending error:', error);
+    console.error('SMS жөнөтүү катасы:', error);
     return false;
   }
 }
