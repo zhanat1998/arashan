@@ -158,10 +158,10 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-14">
+    <div className="min-h-screen bg-gray-100 pb-14 md:pb-0">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white shadow-sm">
-        <div className="flex items-center justify-between px-2 py-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-2 md:px-4 py-2 md:py-3">
           <button onClick={() => router.back()} className="p-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -185,13 +185,17 @@ export default function ProductDetailPage() {
         </div>
       </header>
 
-      {/* Gallery */}
-      <div className="bg-white">
-        <ProductGallery images={product.images} videoUrl={product.videoUrl} title={product.title} />
-      </div>
+      {/* Desktop Layout Container */}
+      <div className="max-w-7xl mx-auto md:px-4 md:py-6 md:grid md:grid-cols-2 md:gap-6">
+        {/* Gallery */}
+        <div className="bg-white md:rounded-xl md:overflow-hidden md:sticky md:top-20 md:h-fit">
+          <ProductGallery images={product.images} videoUrl={product.videoUrl} title={product.title} />
+        </div>
 
-      {/* Price Section */}
-      <div className="bg-gradient-to-r from-red-500 to-orange-500 px-3 py-2">
+        {/* Product Info Column */}
+        <div className="md:space-y-4">
+          {/* Price Section */}
+          <div className="bg-gradient-to-r from-red-500 to-orange-500 px-3 py-2 md:rounded-xl md:px-4 md:py-3">
         <div className="flex items-end gap-2">
           <span className="text-white text-sm">¥</span>
           <span className="text-white text-3xl font-bold">{formatPrice(product.price)}</span>
@@ -217,14 +221,14 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Guarantee Banner */}
-      <div className="bg-orange-50 border-y border-orange-200 px-3 py-1.5">
+      <div className="bg-orange-50 border-y border-orange-200 px-3 py-1.5 md:rounded-xl md:border md:mt-4">
         <p className="text-orange-600 text-xs">
           ✅ Кайтаруу акысыз | Канааттанбасаңыз акчаңыз кайтарылат | 7 күн кайтаруу
         </p>
       </div>
 
       {/* Product Title */}
-      <div className="bg-white px-3 py-2">
+      <div className="bg-white px-3 py-2 md:rounded-xl md:px-4 md:py-3 md:mt-4">
         <div className="flex items-start gap-2">
           {product.shop.isOfficialStore && (
             <span className="bg-red-500 text-white text-[10px] px-1 py-0.5 rounded shrink-0 mt-0.5">Official</span>
@@ -242,7 +246,7 @@ export default function ProductDetailPage() {
 
       {/* Group Buy Section */}
       {product.isGroupBuy && product.groupBuyPrice && (
-        <div className="bg-white mt-1.5 px-3 py-2">
+        <div className="bg-white mt-1.5 px-3 py-2 md:rounded-xl md:px-4 md:py-3 md:mt-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500">Бирге алуу баасы ({product.groupBuyMinPeople}+ адам)</p>
@@ -269,7 +273,7 @@ export default function ProductDetailPage() {
       )}
 
       {/* Shop Card - Compact */}
-      <div className="bg-white mt-1.5 px-3 py-2">
+      <div className="bg-white mt-1.5 px-3 py-2 md:rounded-xl md:px-4 md:py-3 md:mt-4">
         <div className="flex items-center gap-2">
           <Link href={`/shop/${product.shop.id}`} className="flex items-center gap-2 flex-1">
             <div className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-200">
@@ -303,7 +307,7 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Options: Color & Size */}
-      <div className="bg-white mt-1.5 px-3 py-2">
+      <div className="bg-white mt-1.5 px-3 py-2 md:rounded-xl md:px-4 md:py-3 md:mt-4">
         <div className="flex items-center justify-between" onClick={() => {}}>
           <span className="text-xs text-gray-500">Тандоо</span>
           <div className="flex items-center gap-1 text-xs text-gray-800">
@@ -357,57 +361,65 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Guarantees */}
-      <div className="bg-white mt-1.5 px-3 py-2">
-        <div className="flex items-center gap-3 text-[10px] text-gray-500">
+      <div className="bg-white mt-1.5 px-3 py-2 md:rounded-xl md:px-4 md:py-3 md:mt-4">
+        <div className="flex items-center gap-3 md:gap-6 text-[10px] md:text-sm text-gray-500">
           <span className="text-green-600">✓ 7-күн кайтаруу</span>
           <span className="text-green-600">✓ Акысыз жеткирүү</span>
           <span className="text-green-600">✓ Кечиксе компенсация</span>
         </div>
       </div>
+      </div>{/* End Product Info Column */}
+      </div>{/* End Desktop Layout Container */}
 
-      {/* Reviews Section */}
-      <ProductReviewsSection productId={productId} />
+      {/* Reviews Section - Full Width */}
+      <div className="max-w-7xl mx-auto md:px-4 md:mt-6">
+        <ProductReviewsSection productId={productId} />
+      </div>
 
       {/* Specifications - Compact */}
       {product.specifications && product.specifications.length > 0 && (
-        <div className="bg-white mt-1.5 px-3 py-2">
-          <h3 className="text-sm font-medium text-gray-800 mb-1.5">Мүнөздөмөлөр</h3>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            {product.specifications.slice(0, 6).map((spec, idx) => (
-              <div key={idx} className="flex text-xs">
-                <span className="text-gray-400 w-16 shrink-0">{spec.key}</span>
-                <span className="text-gray-700">{spec.value}</span>
-              </div>
-            ))}
+        <div className="max-w-7xl mx-auto md:px-4 md:mt-4">
+          <div className="bg-white mt-1.5 px-3 py-2 md:rounded-xl md:px-4 md:py-4 md:mt-0">
+            <h3 className="text-sm md:text-base font-medium text-gray-800 mb-1.5 md:mb-3">Мүнөздөмөлөр</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 md:gap-y-2">
+              {product.specifications.slice(0, 6).map((spec, idx) => (
+                <div key={idx} className="flex text-xs md:text-sm">
+                  <span className="text-gray-400 w-16 md:w-24 shrink-0">{spec.key}</span>
+                  <span className="text-gray-700">{spec.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Related Products - Compact */}
       {filteredRelated.length > 0 && (
-        <div className="bg-white mt-1.5 px-3 py-2">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-800">Окшош товарлар</h3>
-            <Link href="/categories" className="text-xs text-gray-400">Баарын көрүү &gt;</Link>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {filteredRelated.map(p => (
-              <Link key={p.id} href={`/product/${p.id}`} className="bg-gray-50 rounded overflow-hidden">
-                <div className="relative aspect-square">
-                  <Image src={p.images[0]} alt={p.title} fill className="object-cover" />
-                </div>
-                <div className="p-1.5">
-                  <p className="text-[10px] text-gray-600 line-clamp-1">{p.title}</p>
-                  <p className="text-xs text-red-500 font-medium">¥{formatPrice(p.price)}</p>
-                </div>
-              </Link>
-            ))}
+        <div className="max-w-7xl mx-auto md:px-4 md:mt-4 md:mb-8">
+          <div className="bg-white mt-1.5 px-3 py-2 md:rounded-xl md:px-4 md:py-4 md:mt-0">
+            <div className="flex items-center justify-between mb-2 md:mb-4">
+              <h3 className="text-sm md:text-base font-medium text-gray-800">Окшош товарлар</h3>
+              <Link href="/categories" className="text-xs md:text-sm text-gray-400 hover:text-orange-500">Баарын көрүү &gt;</Link>
+            </div>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5 md:gap-3">
+              {filteredRelated.map(p => (
+                <Link key={p.id} href={`/product/${p.id}`} className="bg-gray-50 rounded md:rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="relative aspect-square">
+                    <Image src={p.images[0]} alt={p.title} fill className="object-cover" />
+                  </div>
+                  <div className="p-1.5 md:p-2">
+                    <p className="text-[10px] md:text-xs text-gray-600 line-clamp-1">{p.title}</p>
+                    <p className="text-xs md:text-sm text-red-500 font-medium">¥{formatPrice(p.price)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Bottom Fixed Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 px-2 py-1.5 flex items-center gap-2">
+      {/* Bottom Fixed Bar - Mobile Only */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 px-2 py-1.5 flex items-center gap-2 md:hidden">
         <Link href={`/shop/${product.shop.id}`} className="flex flex-col items-center px-2">
           <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />

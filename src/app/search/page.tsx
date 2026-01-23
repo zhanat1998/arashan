@@ -164,7 +164,7 @@ export default function SearchPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-4 pb-24">
+      <main className="max-w-7xl mx-auto px-2 md:px-4 py-4 pb-24 md:pb-8">
         {/* Before search */}
         {!hasSearched && !query && (
           <>
@@ -343,7 +343,7 @@ export default function SearchPage() {
 
             {sortedProducts.length > 0 ? (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-3">
                   {displayedProducts.map((item, index) => (
                     <div
                       key={item.id}
@@ -395,8 +395,8 @@ export default function SearchPage() {
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30">
+      {/* Bottom Navigation - Mobile only */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 md:hidden">
         <div className="flex items-center justify-around py-2">
           <Link href="/" className="flex flex-col items-center gap-0.5 text-gray-500">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

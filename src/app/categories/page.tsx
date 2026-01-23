@@ -158,7 +158,7 @@ export default function CategoriesPage() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 pb-24">
+        <main className="flex-1 p-2 md:p-4 pb-24 md:pb-8">
           {/* Category Header */}
           <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -217,7 +217,7 @@ export default function CategoriesPage() {
           {/* Products Grid */}
           {sortedProducts.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
                 {displayedProducts.map((product, index) => (
                   <Link
                     key={product.id}
@@ -319,8 +319,8 @@ export default function CategoriesPage() {
         </main>
       </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30">
+      {/* Bottom Navigation - Mobile only */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 md:hidden">
         <div className="flex items-center justify-around py-2">
           <Link href="/" className="flex flex-col items-center gap-0.5 text-gray-500">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

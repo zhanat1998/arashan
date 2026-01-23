@@ -55,7 +55,7 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-8">
       <Header />
 
       {/* Page Header */}
@@ -100,7 +100,7 @@ export default function FavoritesPage() {
           </div>
         ) : (
           /* Wishlist Grid */
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-3">
             {wishlist.map((item) => (
               <div key={item.id} className="bg-white rounded-xl overflow-hidden shadow-sm">
                 {/* Product Image */}

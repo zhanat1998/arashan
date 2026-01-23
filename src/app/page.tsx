@@ -58,49 +58,51 @@ export default function Home() {
       <Header />
       <CategoryBar categories={categories} onCategoryChange={setActiveCategory} />
 
-      {/* Hero Banner - Compact */}
-      <div className="px-1.5 py-1.5">
-        <div className="relative h-28 rounded-lg overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-pink-500">
-          <div className="absolute inset-0 flex items-center justify-between px-3">
+      {/* Desktop Container */}
+      <div className="max-w-7xl mx-auto">
+        {/* Hero Banner - Compact on mobile, larger on desktop */}
+        <div className="px-1.5 py-1.5 md:px-4 md:py-3">
+          <div className="relative h-28 md:h-40 lg:h-48 rounded-lg md:rounded-xl overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-pink-500">
+          <div className="absolute inset-0 flex items-center justify-between px-3 md:px-8">
             <div className="text-white">
-              <div className="flex items-center gap-1 mb-1">
-                <span className="px-1.5 py-0.5 bg-white/20 rounded text-[10px] font-medium">Жаңы</span>
-                <span className="px-1.5 py-0.5 bg-yellow-400 text-yellow-900 rounded text-[10px] font-bold">FLASH</span>
+              <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                <span className="px-1.5 py-0.5 md:px-3 md:py-1 bg-white/20 rounded text-[10px] md:text-sm font-medium">Жаңы</span>
+                <span className="px-1.5 py-0.5 md:px-3 md:py-1 bg-yellow-400 text-yellow-900 rounded text-[10px] md:text-sm font-bold">FLASH</span>
               </div>
-              <h2 className="text-lg font-bold">50% чейин арзан!</h2>
-              <p className="text-[10px] text-white/90">Бирге алуу · Акысыз жеткирүү</p>
+              <h2 className="text-lg md:text-2xl lg:text-3xl font-bold">50% чейин арзан!</h2>
+              <p className="text-[10px] md:text-sm text-white/90">Бирге алуу · Акысыз жеткирүү</p>
             </div>
-            <div className="text-5xl opacity-90">🛍️</div>
+            <div className="text-5xl md:text-7xl lg:text-8xl opacity-90">🛍️</div>
           </div>
         </div>
       </div>
 
       {/* Trending - Compact */}
-      <div className="px-1.5 py-1">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
+      <div className="px-1.5 py-1 md:px-4 md:py-3">
+        <div className="flex items-center justify-between mb-1 md:mb-3">
+          <h3 className="text-xs md:text-base font-bold text-gray-800 flex items-center gap-1 md:gap-2">
             <span>🔥</span> Популярдуу
           </h3>
-          <Link href="/categories?sort=popular" className="text-orange-600 text-[10px]">Баары →</Link>
+          <Link href="/categories?sort=popular" className="text-orange-600 text-[10px] md:text-sm hover:underline">Баары →</Link>
         </div>
 
-        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1.5 px-1.5 scrollbar-hide">
+        <div className="flex gap-1 md:gap-3 overflow-x-auto pb-1 -mx-1.5 px-1.5 md:-mx-4 md:px-4 scrollbar-hide">
           {[...products]
             .sort((a, b) => ((b.views || 0) + (b.likes || 0) * 10) - ((a.views || 0) + (a.likes || 0) * 10))
             .slice(0, 12)
             .map((item) => (
               <Link key={item.id} href={`/product/${item.id}`} className="flex-shrink-0">
-                <div className="w-16 bg-white rounded-lg overflow-hidden border border-gray-100">
-                  <div className="relative w-16 h-16">
+                <div className="w-16 md:w-20 lg:w-24 bg-white rounded-lg overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="relative w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24">
                     <Image src={item.images[0]} alt={item.title} fill className="object-cover" />
                     {item.originalPrice && (
-                      <div className="absolute top-0 right-0 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-bl">
+                      <div className="absolute top-0 right-0 px-0.5 md:px-1 bg-red-500 text-white text-[8px] md:text-[10px] font-bold rounded-bl">
                         -{Math.round((1 - item.price / item.originalPrice) * 100)}%
                       </div>
                     )}
                   </div>
-                  <div className="p-1 text-center">
-                    <div className="text-[10px] font-bold text-red-600">¥{item.price >= 1000 ? `${(item.price / 1000).toFixed(0)}K` : item.price}</div>
+                  <div className="p-1 md:p-1.5 text-center">
+                    <div className="text-[10px] md:text-xs font-bold text-red-600">¥{item.price >= 1000 ? `${(item.price / 1000).toFixed(0)}K` : item.price}</div>
                   </div>
                 </div>
               </Link>
@@ -110,44 +112,44 @@ export default function Home() {
 
       {/* Hot Deals - Compact */}
       {hotProducts.length > 0 && (
-        <div className="px-1.5 py-1">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
+        <div className="px-1.5 py-1 md:px-4 md:py-3">
+          <div className="flex items-center justify-between mb-1 md:mb-3">
+            <h3 className="text-xs md:text-base font-bold text-gray-800 flex items-center gap-1 md:gap-2">
               <span>👥</span> Бирге алуу
-              <span className="px-1 py-0.5 bg-orange-100 text-orange-700 text-[8px] font-bold rounded animate-pulse">HOT</span>
+              <span className="px-1 py-0.5 md:px-2 md:py-1 bg-orange-100 text-orange-700 text-[8px] md:text-xs font-bold rounded animate-pulse">HOT</span>
             </h3>
-            <Link href="/categories?filter=deals" className="text-orange-600 text-[10px]">Баары →</Link>
+            <Link href="/categories?filter=deals" className="text-orange-600 text-[10px] md:text-sm hover:underline">Баары →</Link>
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1.5 px-1.5 scrollbar-hide">
+          <div className="flex gap-1.5 md:gap-3 overflow-x-auto pb-1 -mx-1.5 px-1.5 md:-mx-4 md:px-4 scrollbar-hide">
             {hotProducts.slice(0, 6).map((item) => (
-              <Link key={item.id} href={`/product/${item.id}`} className="flex-shrink-0 w-36">
-                <div className={`bg-gradient-to-br ${item.isGroupBuy ? 'from-orange-50 to-pink-50' : 'from-yellow-50 to-red-50'} rounded-lg p-1.5 border border-orange-100`}>
-                  <div className="relative h-24 rounded overflow-hidden mb-1">
+              <Link key={item.id} href={`/product/${item.id}`} className="flex-shrink-0 w-36 md:w-44 lg:w-48">
+                <div className={`bg-gradient-to-br ${item.isGroupBuy ? 'from-orange-50 to-pink-50' : 'from-yellow-50 to-red-50'} rounded-lg p-1.5 md:p-2 border border-orange-100 hover:shadow-md transition-shadow`}>
+                  <div className="relative h-24 md:h-32 lg:h-36 rounded overflow-hidden mb-1 md:mb-2">
                     <Image src={item.images[0]} alt={item.title} fill className="object-cover" />
                     {item.isGroupBuy && (
-                      <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-gradient-to-r from-orange-500 to-pink-500 text-white text-[8px] font-bold rounded">
+                      <div className="absolute top-0.5 left-0.5 md:top-1 md:left-1 px-1 py-0.5 md:px-2 md:py-1 bg-gradient-to-r from-orange-500 to-pink-500 text-white text-[8px] md:text-xs font-bold rounded">
                         👥 БИРГЕ
                       </div>
                     )}
                     {item.isFlashSale && !item.isGroupBuy && (
-                      <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-gradient-to-r from-yellow-500 to-red-500 text-white text-[8px] font-bold rounded animate-pulse">
+                      <div className="absolute top-0.5 left-0.5 md:top-1 md:left-1 px-1 py-0.5 md:px-2 md:py-1 bg-gradient-to-r from-yellow-500 to-red-500 text-white text-[8px] md:text-xs font-bold rounded animate-pulse">
                         ⚡ FLASH
                       </div>
                     )}
                     {item.videoUrl && (
                       <button
                         onClick={(e) => { e.preventDefault(); handleVideoClick(item.id); }}
-                        className="absolute bottom-0.5 right-0.5 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center"
+                        className="absolute bottom-0.5 right-0.5 md:bottom-1 md:right-1 w-6 h-6 md:w-8 md:h-8 bg-white/90 rounded-full flex items-center justify-center hover:bg-white"
                       >
-                        <svg className="w-3 h-3 text-red-500 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                        <svg className="w-3 h-3 md:w-4 md:h-4 text-red-500 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                       </button>
                     )}
                   </div>
-                  <h4 className="text-[10px] font-medium text-gray-800 line-clamp-1">{item.title}</h4>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <span className="text-xs font-bold text-red-600">¥{item.isGroupBuy && item.groupBuyPrice ? item.groupBuyPrice.toLocaleString() : item.price.toLocaleString()}</span>
-                    <span className="text-[8px] text-gray-400">{item.soldCount > 1000 ? `${(item.soldCount/1000).toFixed(1)}K` : item.soldCount}</span>
+                  <h4 className="text-[10px] md:text-sm font-medium text-gray-800 line-clamp-1">{item.title}</h4>
+                  <div className="flex items-center justify-between mt-0.5 md:mt-1">
+                    <span className="text-xs md:text-sm font-bold text-red-600">¥{item.isGroupBuy && item.groupBuyPrice ? item.groupBuyPrice.toLocaleString() : item.price.toLocaleString()}</span>
+                    <span className="text-[8px] md:text-xs text-gray-400">{item.soldCount > 1000 ? `${(item.soldCount/1000).toFixed(1)}K` : item.soldCount}</span>
                   </div>
                 </div>
               </Link>
@@ -157,20 +159,20 @@ export default function Home() {
       )}
 
       {/* All Products Grid - Compact */}
-      <div className="px-1.5 pb-16">
-        <div className="flex items-center justify-between mb-1.5 py-1 bg-white rounded px-2">
-          <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
+      <div className="px-1.5 pb-16 md:px-4 md:pb-8">
+        <div className="flex items-center justify-between mb-1.5 md:mb-3 py-1 md:py-2 bg-white rounded md:rounded-lg px-2 md:px-4">
+          <h3 className="text-xs md:text-base font-bold text-gray-800 flex items-center gap-1 md:gap-2">
             🛍️ {activeCategory === '1' ? 'Баары' : categories.find(c => c.id === activeCategory)?.name}
-            <span className="text-[10px] font-normal text-gray-400">({products.length})</span>
+            <span className="text-[10px] md:text-sm font-normal text-gray-400">({products.length})</span>
           </h3>
-          <div className="flex items-center gap-1">
-            <button className="px-2 py-0.5 text-[10px] bg-orange-500 text-white rounded">Баары</button>
-            <button className="px-2 py-0.5 text-[10px] bg-white text-gray-600 rounded border border-gray-200">Жаңы</button>
-            <button className="px-2 py-0.5 text-[10px] bg-white text-gray-600 rounded border border-gray-200">Арзан</button>
+          <div className="flex items-center gap-1 md:gap-2">
+            <button className="px-2 py-0.5 md:px-4 md:py-1.5 text-[10px] md:text-sm bg-orange-500 text-white rounded md:rounded-lg hover:bg-orange-600 transition-colors">Баары</button>
+            <button className="px-2 py-0.5 md:px-4 md:py-1.5 text-[10px] md:text-sm bg-white text-gray-600 rounded md:rounded-lg border border-gray-200 hover:border-orange-300 transition-colors">Жаңы</button>
+            <button className="px-2 py-0.5 md:px-4 md:py-1.5 text-[10px] md:text-sm bg-white text-gray-600 rounded md:rounded-lg border border-gray-200 hover:border-orange-300 transition-colors">Арзан</button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1 md:gap-3">
           {loading && products.length === 0 ? (
             // Loading skeleton
             Array.from({ length: 6 }).map((_, index) => (
@@ -196,21 +198,22 @@ export default function Home() {
         </div>
 
         {/* Infinite Scroll */}
-        <div ref={loadMoreRef} className="flex flex-col items-center mt-2 pb-2">
+        <div ref={loadMoreRef} className="flex flex-col items-center mt-2 md:mt-4 pb-2 md:pb-4">
           {loading && products.length > 0 && (
-            <div className="flex items-center gap-2 py-2">
-              <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-gray-500 text-[10px]">Жүктөлүүдө...</span>
+            <div className="flex items-center gap-2 py-2 md:py-4">
+              <div className="w-4 h-4 md:w-6 md:h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-gray-500 text-[10px] md:text-sm">Жүктөлүүдө...</span>
             </div>
           )}
           {hasMore && !loading && (
-            <div className="text-gray-400 text-[10px] py-2">Дагы жүктөө...</div>
+            <div className="text-gray-400 text-[10px] md:text-sm py-2">Дагы жүктөө...</div>
           )}
           {!hasMore && products.length > 0 && (
-            <div className="text-gray-400 text-[10px] py-2">Баары жүктөлдү ({products.length})</div>
+            <div className="text-gray-400 text-[10px] md:text-sm py-2">Баары жүктөлдү ({products.length})</div>
           )}
         </div>
       </div>
+      </div>{/* End Desktop Container */}
 
       {/* Video Reel Button */}
       <VideoReelButton onClick={() => setShowVideoFeed(true)} videoCount={videos.length} />
