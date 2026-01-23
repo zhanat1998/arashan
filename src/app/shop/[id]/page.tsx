@@ -105,7 +105,7 @@ export default function ShopPage() {
             >
               {isFollowing ? '✓ Жазылдыңыз' : '+ Жазылуу'}
             </button>
-            <ContactSellerButton shopId={shop.id} variant="button" className="text-xs" />
+            <ContactSellerButton shopId={shop.id} shopName={shop.name} shopLogo={shop.logo} variant="button" className="text-xs" />
           </div>
 
           {/* Guarantee badge */}
@@ -251,7 +251,7 @@ export default function ShopPage() {
           </svg>
           <span className="text-[10px] text-gray-500">{isFollowing ? 'Сакталды' : 'Сактоо'}</span>
         </button>
-        <ContactSellerButton shopId={shop.id} variant="icon" />
+        <ContactSellerButton shopId={shop.id} shopName={shop.name} shopLogo={shop.logo} variant="icon" />
         <button
           onClick={() => setIsFollowing(!isFollowing)}
           className={`flex-1 py-2.5 rounded-full text-sm font-medium ${isFollowing ? 'bg-gray-200 text-gray-600' : 'bg-red-500 text-white'}`}

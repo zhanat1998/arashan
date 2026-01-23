@@ -299,7 +299,8 @@ export default function ProductDetailPage() {
           </button>
           <ContactSellerButton
             shopId={product.shop.id}
-            productTitle={product.title}
+            shopName={product.shop.name}
+            shopLogo={product.shop.logo}
             variant="button"
             className="text-xs"
           />
@@ -432,7 +433,7 @@ export default function ProductDetailPage() {
           </svg>
           <span className="text-[10px] text-gray-500">Сактоо</span>
         </button>
-        <ContactSellerButton shopId={product.shop.id} productTitle={product.title} variant="icon" />
+        <ContactSellerButton shopId={product.shop.id} shopName={product.shop.name} shopLogo={product.shop.logo} variant="icon" />
         {product.originalPrice && (
           <button onClick={handleAddToCart} className="flex-1 bg-orange-500 text-white py-2.5 rounded-l-full text-sm font-medium">
             <span className="line-through text-white/70 text-xs">¥{formatPrice(product.originalPrice)}</span>

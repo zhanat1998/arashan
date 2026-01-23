@@ -1,75 +1,104 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-// GET /api/chat/[id] - Сүйлөшүүнүн билдирүүлөрүн алуу
+// GET /api/chat/[id] - ОПТИМАЛДАШТЫРЫЛГАН: параллель сурамдар
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: conversationId } = await params;
+  const { searchParams } = new URL(request.url);
+
+  const limit = parseInt(searchParams.get('limit') || '20');
+  const offset = parseInt(searchParams.get('offset') || '0');
+
   const supabase = await createServerSupabaseClient();
 
+  // 1. Auth текшерүү
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Кирүү керек' }, { status: 401 });
   }
 
-  // Сүйлөшүү маалыматын алуу
-  const { data: conversation, error: convError } = await supabase
-    .from('conversations')
-    .select(`
-      *,
-      shop:shops(id, name, logo, owner_id)
-    `)
-    .eq('id', conversationId)
-    .single();
+  // 2. ПАРАЛЛЕЛЬ: conversation + messages + count бир убакта
+  const [conversationResult, messagesResult, countResult] = await Promise.all([
+    // Conversation
+    supabase
+      .from('conversations')
+      .select('*, shop:shops(id, name, logo, owner_id)')
+      .eq('id', conversationId)
+      .single(),
+
+    // Messages (limit+1 алып hasMore текшерүү - count сурамын жокко чыгарат)
+    supabase
+      .from('chat_messages')
+      .select('id, conversation_id, sender_id, receiver_id, message, message_type, metadata, is_read, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit),
+
+    // Count - биринчи жүктөө гана
+    offset === 0
+      ? supabase
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', conversationId)
+      : Promise.resolve({ count: null })
+  ]);
+
+  const { data: conversation, error: convError } = conversationResult;
 
   if (convError || !conversation) {
     return NextResponse.json({ error: 'Сүйлөшүү табылган жок' }, { status: 404 });
   }
 
-  // Колдонуучу бул сүйлөшүүгө катышкандыгын текшерүү
+  // Уруксат текшерүү
   if (conversation.user_id !== user.id && conversation.shop?.owner_id !== user.id) {
     return NextResponse.json({ error: 'Уруксат жок' }, { status: 403 });
   }
 
-  // Билдирүүлөрдү алуу
-  const { data: messages, error: msgError } = await supabase
-    .from('chat_messages')
-    .select(`
-      *,
-      sender:users!sender_id(id, name, avatar)
-    `)
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-
+  const { data: rawMessages, error: msgError } = messagesResult;
   if (msgError) {
     return NextResponse.json({ error: msgError.message }, { status: 500 });
   }
 
-  // Окулбаган билдирүүлөрдү окулду деп белгилөө
-  const otherUserId = conversation.user_id === user.id
-    ? conversation.shop?.owner_id
-    : conversation.user_id;
+  // hasMore: limit+1 алганбыз, эгер limit+1 бар болсо - дагы бар
+  const hasMore = (rawMessages?.length || 0) > limit;
+  const messages = (rawMessages || []).slice(0, limit).reverse();
 
-  await supabase
-    .from('chat_messages')
-    .update({ is_read: true })
-    .eq('conversation_id', conversationId)
-    .eq('sender_id', otherUserId)
-    .eq('is_read', false);
+  // 3. NON-BLOCKING: read status жаңыртуу (күтпөйбүз!)
+  if (offset === 0) {
+    const otherUserId = conversation.user_id === user.id
+      ? conversation.shop?.owner_id
+      : conversation.user_id;
 
-  // Unread count'ду 0 кылуу
-  if (conversation.user_id === user.id) {
-    await supabase
-      .from('conversations')
-      .update({ unread_count: 0 })
-      .eq('id', conversationId);
+    // Фонда иштейт - күтпөйбүз
+    Promise.all([
+      supabase
+        .from('chat_messages')
+        .update({ is_read: true })
+        .eq('conversation_id', conversationId)
+        .eq('sender_id', otherUserId)
+        .eq('is_read', false),
+
+      conversation.user_id === user.id
+        ? supabase
+            .from('conversations')
+            .update({ unread_count: 0 })
+            .eq('id', conversationId)
+        : Promise.resolve()
+    ]).catch(() => {}); // Ката болсо да көз жумуу
   }
 
   return NextResponse.json({
     conversation,
-    messages: messages || []
+    messages,
+    pagination: {
+      total: countResult.count ?? messages.length,
+      limit,
+      offset,
+      hasMore
+    }
   });
 }
 
@@ -131,10 +160,7 @@ export async function POST(
       metadata: metadata || {},
       is_read: false
     })
-    .select(`
-      *,
-      sender:users!sender_id(id, name, avatar)
-    `)
+    .select('*')
     .single();
 
   if (msgError) {
