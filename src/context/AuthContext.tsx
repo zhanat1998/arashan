@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { getSupabaseClient } from '@/lib/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import type { User, SupabaseClient } from '@supabase/supabase-js';
 
 interface UserProfile {
   id: string;
@@ -17,6 +17,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  isReady: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -30,8 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false);
 
-  const supabase = getSupabaseClient();
+  // Create supabase client once
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
 
   // Fetch user profile
   const fetchProfile = useCallback(async (userId: string) => {
@@ -51,18 +57,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth state
   useEffect(() => {
+    let mounted = true;
+
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (session?.user) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
+        if (mounted) {
+          if (session?.user) {
+            setUser(session.user);
+            await fetchProfile(session.user.id);
+          }
+          setLoading(false);
+          setIsReady(true);
         }
       } catch (err) {
         console.error('Auth init error:', err);
-      } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setIsReady(true);
+        }
       }
     };
 
@@ -71,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+
         if (session?.user) {
           setUser(session.user);
           await fetchProfile(session.user.id);
@@ -79,10 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
         }
         setLoading(false);
+        setIsReady(true);
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [supabase, fetchProfile]);
@@ -185,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         profile,
         loading,
+        isReady,
         signIn,
         signUp,
         signInWithGoogle,

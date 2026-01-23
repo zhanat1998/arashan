@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, isReady } = useAuth();
 
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +17,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Handle hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +45,8 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!mounted || !isReady) return;
+
     setError('');
     setGoogleLoading(true);
 
@@ -49,6 +57,9 @@ export default function LoginPage() {
       setGoogleLoading(false);
     }
   };
+
+  // Show loading skeleton until mounted and ready
+  const isButtonDisabled = !mounted || !isReady;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -142,16 +153,16 @@ export default function LoginPage() {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || isButtonDisabled}
         className="w-full py-3.5 bg-gradient-to-r from-red-500 to-orange-500 text-white font-medium rounded-xl hover:from-red-600 hover:to-orange-600 focus:ring-4 focus:ring-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        {loading ? (
+        {loading || isButtonDisabled ? (
           <>
             <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Кирүүдө...
+            {isButtonDisabled ? 'Жүктөлүүдө...' : 'Кирүүдө...'}
           </>
         ) : (
           <>
@@ -178,16 +189,18 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={googleLoading}
+          disabled={googleLoading || isButtonDisabled}
           className="w-full py-3 border border-gray-200 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {googleLoading ? (
+          {googleLoading || isButtonDisabled ? (
             <>
               <svg className="animate-spin w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <span className="text-gray-600 font-medium">Күтө туруңуз...</span>
+              <span className="text-gray-600 font-medium">
+                {isButtonDisabled ? 'Жүктөлүүдө...' : 'Күтө туруңуз...'}
+              </span>
             </>
           ) : (
             <>
