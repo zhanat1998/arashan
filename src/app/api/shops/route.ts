@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, description, logo, banner, location, phone, whatsapp, telegram } = body;
+  const { name, description, logo, location } = body;
 
   if (!name) {
     return NextResponse.json({ error: 'Дүкөн аты керек' }, { status: 400 });
@@ -76,17 +76,14 @@ export async function POST(request: NextRequest) {
       name,
       description: description || '',
       logo: logo || null,
-      banner: banner || null,
       location: location || '',
-      phone: phone || '',
-      whatsapp: whatsapp || '',
-      telegram: telegram || '',
-      is_active: true,
       is_verified: false,
+      is_official_store: false,
       rating: 0,
       followers_count: 0,
       products_count: 0,
-      total_sales: 0
+      sales_count: 0,
+      response_rate: 0
     })
     .select()
     .single();

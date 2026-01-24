@@ -50,7 +50,8 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = await request.json();
-  const allowedFields = ['name', 'description', 'logo', 'banner', 'location', 'phone', 'whatsapp', 'telegram'];
+  // Only allow fields that exist in the database schema
+  const allowedFields = ['name', 'description', 'logo', 'location', 'response_time'];
 
   const updates: Record<string, any> = {};
   for (const field of allowedFields) {
@@ -58,8 +59,6 @@ export async function PUT(request: NextRequest) {
       updates[field] = body[field];
     }
   }
-
-  updates.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from('shops')
