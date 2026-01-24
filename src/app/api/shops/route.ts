@@ -46,20 +46,25 @@ export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
 
   // Check auth
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
   if (!user) {
     return NextResponse.json({ error: 'Кирүү керек' }, { status: 401 });
   }
 
   // Check if user already has a shop
-  const { data: existingShop } = await supabase
+  const { data: existingShop, error: checkError } = await supabase
     .from('shops')
-    .select('id')
+    .select('id, owner_id')
     .eq('owner_id', user.id)
-    .single();
+    .maybeSingle();
 
   if (existingShop) {
-    return NextResponse.json({ error: 'Сизде мурунтан дүкөн бар' }, { status: 400 });
+    // Shop already exists, redirect to seller dashboard
+    return NextResponse.json({
+      error: 'Сизде мурунтан дүкөн бар',
+      shop: existingShop
+    }, { status: 400 });
   }
 
   const body = await request.json();
@@ -89,7 +94,6 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error('Shop creation error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

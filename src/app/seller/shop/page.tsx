@@ -22,6 +22,14 @@ export default function ShopSettingsPage() {
     banner: '',
   });
 
+  // Format phone number (only 9 digits after +996)
+  const formatPhoneInput = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    // Limit to 9 digits
+    return digits.slice(0, 9);
+  };
+
   useEffect(() => {
     async function fetchShop() {
       try {
@@ -190,26 +198,38 @@ export default function ShopSettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Телефон
               </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+996 XXX XXX XXX"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all outline-none"
-              />
+              <div className="flex">
+                <div className="flex items-center px-4 py-3 bg-gray-100 border border-r-0 border-gray-200 rounded-l-xl">
+                  <span className="text-gray-700 font-medium">+996</span>
+                </div>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: formatPhoneInput(e.target.value) })}
+                  placeholder="700 123 456"
+                  maxLength={9}
+                  className="flex-1 px-4 py-3 border border-gray-200 rounded-r-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all outline-none"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 WhatsApp
               </label>
-              <input
-                type="tel"
-                value={formData.whatsapp}
-                onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                placeholder="+996 XXX XXX XXX"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all outline-none"
-              />
+              <div className="flex">
+                <div className="flex items-center px-4 py-3 bg-green-50 border border-r-0 border-gray-200 rounded-l-xl">
+                  <span className="text-green-700 font-medium">+996</span>
+                </div>
+                <input
+                  type="tel"
+                  value={formData.whatsapp}
+                  onChange={(e) => setFormData({ ...formData, whatsapp: formatPhoneInput(e.target.value) })}
+                  placeholder="700 123 456"
+                  maxLength={9}
+                  className="flex-1 px-4 py-3 border border-gray-200 rounded-r-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all outline-none"
+                />
+              </div>
             </div>
 
             <div>

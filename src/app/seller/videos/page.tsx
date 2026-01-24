@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -8,6 +8,8 @@ export default function SellerVideosPage() {
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
 
   useEffect(() => {
     fetchVideos();
@@ -24,6 +26,25 @@ export default function SellerVideosPage() {
       console.error('Error fetching videos:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const togglePlayVideo = (videoId: string) => {
+    const video = videoRefs.current[videoId];
+    if (!video) return;
+
+    if (playingVideo === videoId) {
+      video.pause();
+      setPlayingVideo(null);
+    } else {
+      // Pause other videos
+      Object.keys(videoRefs.current).forEach((id) => {
+        if (id !== videoId && videoRefs.current[id]) {
+          videoRefs.current[id]?.pause();
+        }
+      });
+      video.play();
+      setPlayingVideo(videoId);
     }
   };
 
@@ -93,34 +114,34 @@ export default function SellerVideosPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {videos.map((video) => (
             <div key={video.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
-              <div className="relative aspect-[9/16] bg-gray-100">
-                {video.thumbnail_url ? (
-                  <Image
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+              <div
+                onClick={() => togglePlayVideo(video.id)}
+                className="relative aspect-[9/16] bg-gray-900 cursor-pointer"
+              >
+                <video
+                  ref={(el) => { videoRefs.current[video.id] = el; }}
+                  src={video.video_url}
+                  className="w-full h-full object-cover"
+                  preload="metadata"
+                  playsInline
+                  loop
+                  onEnded={() => setPlayingVideo(null)}
+                  onPause={() => playingVideo === video.id && setPlayingVideo(null)}
+                />
+
+                {/* Play Button Overlay - show when not playing */}
+                {playingVideo !== video.id && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                    <div className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
                   </div>
                 )}
 
-                {/* Play Button Overlay */}
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </div>
-                </div>
-
                 {/* Stats */}
-                <div className="absolute bottom-2 left-2 right-2 flex justify-between">
+                <div className="absolute bottom-2 left-2 right-2 flex justify-between pointer-events-none">
                   <span className="px-2 py-1 bg-black/60 text-white text-xs rounded-lg flex items-center gap-1">
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />

@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-
-const S3 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,44 +12,55 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const folder = formData.get('folder') as string || 'uploads';
+    const type = formData.get('type') as string || 'image';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    // Determine bucket based on type
+    const bucket = type === 'video' ? 'videos' : 'images';
+
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 8);
     const extension = file.name.split('.').pop();
-    const fileName = `${folder}/${timestamp}-${randomString}.${extension}`;
+    const fileName = `${user.id}/${timestamp}-${randomString}.${extension}`;
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload to R2
-    await S3.send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: fileName,
-        Body: buffer,
-        ContentType: file.type,
-      })
-    );
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
 
-    // Return public URL
-    const publicUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
+    if (error) {
+      console.error('Supabase storage error:', error);
+      return NextResponse.json(
+        { error: error.message || 'Upload failed' },
+        { status: 500 }
+      );
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(fileName);
 
     return NextResponse.json({
       success: true,
       url: publicUrl,
       fileName: fileName,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { error: 'Upload failed' },
+      { error: error?.message || 'Upload failed', details: String(error) },
       { status: 500 }
     );
   }

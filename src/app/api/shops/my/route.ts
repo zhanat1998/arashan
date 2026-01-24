@@ -6,7 +6,8 @@ export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
 
   // Check auth
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
   if (!user) {
     return NextResponse.json({ error: 'Кирүү керек' }, { status: 401 });
   }
@@ -15,14 +16,10 @@ export async function GET(request: NextRequest) {
     .from('shops')
     .select('*')
     .eq('owner_id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (!shop) {
-    return NextResponse.json(null);
   }
 
   return NextResponse.json(shop);

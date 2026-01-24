@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function UploadVideoPage() {
   const router = useRouter();
@@ -21,6 +22,9 @@ export default function UploadVideoPage() {
 
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoLoadProgress, setVideoLoadProgress] = useState(0);
+  const [videoDuration, setVideoDuration] = useState<string>('');
 
   useEffect(() => {
     fetchProducts();
@@ -48,35 +52,104 @@ export default function UploadVideoPage() {
       return;
     }
 
-    // Check file size (max 100MB)
-    if (file.size > 100 * 1024 * 1024) {
-      setError('Видео өлчөмү 100MB ашпаш керек');
+    // Check file size (max 50MB - Supabase free tier limit)
+    if (file.size > 50 * 1024 * 1024) {
+      setError('Видео өлчөмү 50MB ашпаш керек (Supabase Free план чеги)');
       return;
     }
 
     setVideoFile(file);
+    setVideoLoading(true);
+    setVideoLoadProgress(0);
+    setVideoDuration('');
     setVideoPreview(URL.createObjectURL(file));
     setError('');
   };
 
-  const uploadVideo = async () => {
-    if (!videoFile) return null;
+  const handleVideoLoaded = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    const duration = video.duration;
+    if (duration && isFinite(duration)) {
+      const minutes = Math.floor(duration / 60);
+      const seconds = Math.floor(duration % 60);
+      setVideoDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+    }
+    setVideoLoadProgress(100);
+    setVideoLoading(false);
+  };
 
-    const formData = new FormData();
-    formData.append('file', videoFile);
-    formData.append('type', 'video');
+  const handleVideoProgress = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (video.buffered.length > 0 && video.duration) {
+      const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+      const progress = Math.round((bufferedEnd / video.duration) * 100);
+      setVideoLoadProgress(progress);
+    }
+  };
 
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Видео жүктөөдө ката кетти');
+  const uploadVideo = async (): Promise<string> => {
+    if (!videoFile) throw new Error('Видео файл жок');
+
+    const supabase = createClient();
+
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('Кирүү керек');
     }
 
-    return data.url;
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 8);
+    const extension = videoFile.name.split('.').pop();
+    const fileName = `${user.id}/${timestamp}-${randomString}.${extension}`;
+
+    // Simulate progress based on file size (estimate ~1MB/sec upload speed)
+    const fileSizeMB = videoFile.size / (1024 * 1024);
+    const estimatedSeconds = Math.max(fileSizeMB / 1, 3); // At least 3 seconds
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) {
+          return prev; // Stop at 90%, wait for actual completion
+        }
+        return prev + Math.round(90 / estimatedSeconds);
+      });
+    }, 1000);
+
+    try {
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('videos')
+        .upload(fileName, videoFile, {
+          contentType: videoFile.type,
+          upsert: false,
+        });
+
+      clearInterval(progressInterval);
+
+      if (error) {
+        throw new Error(error.message || 'Видео жүктөөдө ката кетти');
+      }
+
+      setUploadProgress(100);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('videos')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (err) {
+      clearInterval(progressInterval);
+      throw err;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,15 +162,14 @@ export default function UploadVideoPage() {
     }
 
     setLoading(true);
-    setUploadProgress(0);
+    setUploadProgress(1);
 
     try {
       // Upload video
       let videoUrl = formData.video_url;
       if (videoFile) {
-        setUploadProgress(10);
         videoUrl = await uploadVideo();
-        setUploadProgress(70);
+        setUploadProgress(100);
       }
 
       if (!videoUrl) {
@@ -114,8 +186,6 @@ export default function UploadVideoPage() {
       if (formData.product_id) {
         videoData.product_id = formData.product_id;
       }
-
-      setUploadProgress(80);
 
       const res = await fetch('/api/videos', {
         method: 'POST',
@@ -171,25 +241,64 @@ export default function UploadVideoPage() {
                 </svg>
               </div>
               <p className="text-gray-600 font-medium mb-1">Видео файлды тандоо үчүн чыкылдаңыз</p>
-              <p className="text-sm text-gray-400">MP4, MOV, AVI (максимум 100MB)</p>
+              <p className="text-sm text-gray-400">MP4, MOV, AVI (максимум 50MB)</p>
             </div>
           ) : (
             <div className="relative">
+              {/* Loading overlay */}
+              {videoLoading && (
+                <div className="absolute inset-0 bg-black/80 rounded-xl flex flex-col items-center justify-center z-10">
+                  <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4" />
+                  <p className="text-white font-medium">Видео жүктөлүүдө...</p>
+                </div>
+              )}
+
               <video
                 src={videoPreview}
                 controls
+                onLoadedMetadata={handleVideoLoaded}
+                onCanPlay={() => setVideoLoading(false)}
                 className="w-full max-h-96 rounded-xl bg-black"
               />
+
+              {/* Video info */}
+              {!videoLoading && videoFile && (
+                <div className="mt-3 flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>{videoFile.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                    </svg>
+                    <span>{formatFileSize(videoFile.size)}</span>
+                  </div>
+                  {videoDuration && (
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>{videoDuration}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
                   setVideoFile(null);
                   setVideoPreview(null);
+                  setVideoLoading(false);
+                  setVideoDuration('');
                   if (fileInputRef.current) {
                     fileInputRef.current.value = '';
                   }
                 }}
-                className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center"
+                className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -207,18 +316,25 @@ export default function UploadVideoPage() {
           />
 
           {/* Upload Progress */}
-          {loading && uploadProgress > 0 && (
+          {loading && (
             <div className="mt-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Жүктөлүүдө...</span>
-                <span className="text-gray-600">{uploadProgress}%</span>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-600 font-medium">
+                  {uploadProgress < 100 ? 'Серверге жүктөлүүдө...' : 'Видео сакталууда...'}
+                </span>
+                <span className="text-red-500 font-bold">{uploadProgress}%</span>
               </div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-150"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
+              {videoFile && (
+                <p className="text-xs text-gray-400 mt-2">
+                  {formatFileSize(Math.round(videoFile.size * uploadProgress / 100))} / {formatFileSize(videoFile.size)}
+                </p>
+              )}
             </div>
           )}
         </div>

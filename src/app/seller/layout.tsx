@@ -91,16 +91,20 @@ export default function SellerLayout({
 
   useEffect(() => {
     async function fetchShop() {
-      if (!user) return;
-
       try {
-        const res = await fetch('/api/shops/my');
+        const res = await fetch('/api/shops/my', {
+          cache: 'no-store',
+          credentials: 'include'
+        });
+
         if (res.ok) {
           const data = await res.json();
           setShop(data);
+        } else {
+          setShop(null);
         }
       } catch (error) {
-        console.error('Error fetching shop:', error);
+        setShop(null);
       } finally {
         setLoading(false);
       }
@@ -108,10 +112,12 @@ export default function SellerLayout({
 
     if (user) {
       fetchShop();
+    } else if (!authLoading) {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
