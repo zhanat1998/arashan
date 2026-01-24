@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
 
+  // Response түзүү (cookie коюу үчүн)
+  const response = NextResponse.redirect(new URL('/', requestUrl.origin));
+
   if (code) {
-    const supabase = await createServerSupabaseClient();
+    // Cookie'лерди response'го коюу үчүн Supabase client
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
 
     // Exchange code for session
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -32,6 +51,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Redirect to home page
-  return NextResponse.redirect(new URL('/', requestUrl.origin));
+  return response;
 }

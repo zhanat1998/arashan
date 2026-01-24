@@ -4,6 +4,35 @@ import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
+  const { pathname } = request.nextUrl;
+
+  // Auth callback'ти өткөрүп жиберүү (өзү cookies коёт)
+  if (pathname.startsWith('/auth/callback')) {
+    return response;
+  }
+
+  // ============================================
+  // 0. SUPABASE SESSION REFRESH (маанилүү!)
+  // ============================================
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
+  // Session'ду refresh кылуу - бул cookies'ти жаңылайт
+  await supabase.auth.getUser();
 
   // ============================================
   // 1. КООПСУЗДУК HEADERS
@@ -39,35 +68,15 @@ export async function middleware(request: NextRequest) {
   // ============================================
   // 2. ADMIN/SELLER КОРГОО
   // ============================================
-  const { pathname } = request.nextUrl;
-
   // Корголуучу жолдор
   const protectedPaths = ['/admin', '/seller'];
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
 
   if (isProtectedPath) {
-    // Supabase client түзүү
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
+    // Session текшерүү (жогоруда түзүлгөн supabase client колдонуу)
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Session текшерүү
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
+    if (!user) {
       // Логинге багыттоо
       const loginUrl = new URL('/auth/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
@@ -76,13 +85,13 @@ export async function middleware(request: NextRequest) {
 
     // Admin үчүн кошумча текшерүү
     if (pathname.startsWith('/admin')) {
-      const { data: user } = await supabase
+      const { data: profile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single();
 
-      if (!user || user.role !== 'admin') {
+      if (!profile || profile.role !== 'admin') {
         // Уруксат жок
         return NextResponse.redirect(new URL('/', request.url));
       }
@@ -90,13 +99,13 @@ export async function middleware(request: NextRequest) {
 
     // Seller үчүн текшерүү (shop/create баракчасын кошпогондо)
     if (pathname.startsWith('/seller') && !pathname.startsWith('/seller/shop/create')) {
-      const { data: user } = await supabase
+      const { data: profile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single();
 
-      if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
+      if (!profile || (profile.role !== 'seller' && profile.role !== 'admin')) {
         // Уруксат жок - дүкөн ачуу барагына
         return NextResponse.redirect(new URL('/seller/shop/create', request.url));
       }
