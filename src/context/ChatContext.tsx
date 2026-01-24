@@ -94,10 +94,39 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-// Билдирүү үнү - Web Audio API менен
+// Билдирүү үнү жана вибрация
 const playMessageSound = () => {
   if (typeof window === 'undefined') return;
 
+  // 1. Вибрация (мобилка үчүн) - үн өчүк болсо да иштейт
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate([100, 50, 100]); // Кыска вибрация pattern
+    } catch (e) {
+      // Ignore vibration errors
+    }
+  }
+
+  // 2. Үн ойнотуу
+  try {
+    // Audio элементи менен ойнотуу (телефондун үн жөндөөлөрүн сыйлайт)
+    const audio = new Audio();
+
+    // Base64 encoded notification sound (кыска "ding" үнү)
+    audio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYNbKF2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//tQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
+
+    audio.volume = 0.5; // 50% үн
+    audio.play().catch(() => {
+      // Браузер үндү блоктосо, Web Audio API колдонуу
+      playFallbackSound();
+    });
+  } catch (error) {
+    playFallbackSound();
+  }
+};
+
+// Запастык үн (Web Audio API)
+const playFallbackSound = () => {
   try {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
@@ -106,16 +135,17 @@ const playMessageSound = () => {
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    // Приятный звук уведомления
-    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
-    oscillator.frequency.setValueAtTime(1100, audioContext.currentTime + 0.1); // C#6
+    // Жагымдуу notification үнү
+    oscillator.frequency.setValueAtTime(830, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(1050, audioContext.currentTime + 0.08);
+    oscillator.frequency.setValueAtTime(990, audioContext.currentTime + 0.15);
     oscillator.type = 'sine';
 
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
 
     oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.3);
+    oscillator.stop(audioContext.currentTime + 0.4);
   } catch (error) {
     // Ignore audio errors
   }
