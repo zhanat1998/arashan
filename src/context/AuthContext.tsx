@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-        credentials: 'include', // Cookies алуу үчүн
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -122,14 +122,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.error || 'Кирүү катасы');
       }
 
-      // Cookies коюлгандан кийин Supabase session'ду refresh кылуу
-      const { data: { session } } = await supabase.auth.getSession();
+      // Browser Supabase client'ке session орнотуу
+      if (data.session?.access_token && data.session?.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      }
 
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
+      // Session орнотулгандан кийин user алуу
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      if (authUser) {
+        setUser(authUser);
+        await fetchProfile(authUser.id);
       } else {
-        // API'ден келген маалыматты колдонуу
         setUser(data.user);
         setProfile(data.profile);
       }
