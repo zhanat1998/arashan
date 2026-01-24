@@ -22,7 +22,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  // Колдонуучунун өз дүкөнүн чыгаруу (өзү менен сүйлөшө албайт)
+  const filteredData = (data || []).filter(conv => {
+    const shop = conv.shop as { owner_id?: string } | null;
+    return shop?.owner_id !== user.id;
+  });
+
+  return NextResponse.json(filteredData);
 }
 
 // POST /api/chat - ОПТИМАЛДАШТЫРЫЛГАН
@@ -59,6 +65,11 @@ export async function POST(request: NextRequest) {
 
   if (!shopResult.data) {
     return NextResponse.json({ error: 'Дүкөн табылган жок' }, { status: 404 });
+  }
+
+  // Өз дүкөнүңө жаза албайсың
+  if (shopResult.data.owner_id === user.id) {
+    return NextResponse.json({ error: 'Өз дүкөнүңүзгө жаза албайсыз' }, { status: 400 });
   }
 
   let conversation = convResult.data;

@@ -43,6 +43,32 @@ interface Pagination {
   hasMore: boolean;
 }
 
+// Билдирүү үнү
+const playMessageSound = () => {
+  if (typeof window === 'undefined') return;
+
+  // Вибрация
+  if ('vibrate' in navigator) {
+    try { navigator.vibrate([100, 50, 100]); } catch (e) {}
+  }
+
+  // Үн
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.setValueAtTime(830, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(1050, audioContext.currentTime + 0.08);
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+  } catch (error) {}
+};
+
 // Skeleton Components
 const ConversationSkeleton = () => (
   <div className="px-4 py-4 flex items-center gap-4 animate-pulse">
@@ -314,6 +340,11 @@ export default function SellerMessagesPage() {
         async (payload) => {
           const newMessage = payload.new as Message;
 
+          // Башкалардан келген билдирүү үчүн үн ойнотуу
+          if (newMessage.sender_id !== user.id) {
+            playMessageSound();
+          }
+
           if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
             if (newMessage.sender_id !== user.id) {
               const { data: sender } = await supabase
@@ -334,22 +365,32 @@ export default function SellerMessagesPage() {
             }
           }
 
+          // Сүйлөшүүлөр тизмесин жаңыртуу
           setConversations(prev => {
-            const updated = prev.map(c => {
-              if (c.id === newMessage.conversation_id) {
-                const isCurrentConv = selectedConversation?.id === c.id;
-                return {
-                  ...c,
-                  last_message: newMessage.message,
-                  last_message_at: newMessage.created_at,
-                  unread_count: isCurrentConv ? 0 : c.unread_count + 1,
-                };
-              }
-              return c;
-            });
-            return updated.sort((a, b) =>
-              new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-            );
+            const existingConv = prev.find(c => c.id === newMessage.conversation_id);
+
+            if (existingConv) {
+              // Бар болгон сүйлөшүүнү жаңыртуу
+              const updated = prev.map(c => {
+                if (c.id === newMessage.conversation_id) {
+                  const isCurrentConv = selectedConversation?.id === c.id;
+                  return {
+                    ...c,
+                    last_message: newMessage.message,
+                    last_message_at: newMessage.created_at,
+                    unread_count: isCurrentConv ? 0 : c.unread_count + 1,
+                  };
+                }
+                return c;
+              });
+              return updated.sort((a, b) =>
+                new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+              );
+            } else {
+              // Жаңы сүйлөшүү - тизмени кайра жүктөө
+              fetchConversations();
+              return prev;
+            }
           });
         }
       )

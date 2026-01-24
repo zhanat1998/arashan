@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
     .eq('shop_id', shop.id)
     .order('last_message_at', { ascending: false });
 
+  console.log('🔍 Seller messages - shop_id:', shop.id, 'conversations:', conversations?.length, 'error:', error);
+
   if (error) {
+    console.error('❌ Seller messages error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
