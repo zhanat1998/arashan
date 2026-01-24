@@ -4,6 +4,80 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
+// Каталарды кыргызчага которуу
+const translateError = (error: string): string => {
+  if (!error) return 'Белгисиз ката';
+
+  const errorLower = error.toLowerCase();
+
+  // Маалымат базасы каталары
+  if (errorLower.includes('could not find') && errorLower.includes('column')) {
+    // Колонка атын табуу
+    const match = error.match(/'([^']+)'/);
+    const columnName = match ? match[1] : 'белгисиз';
+    return `Маалымат базасында "${columnName}" колонкасы табылган жок. Администраторго кайрылыңыз.`;
+  }
+
+  if (errorLower.includes('row-level security') || errorLower.includes('rls')) {
+    return 'Уруксат жок. RLS policy текшериңиз же администраторго кайрылыңыз.';
+  }
+
+  if (errorLower.includes('violates foreign key')) {
+    return 'Байланыш катасы. Категория же башка талаа туура эмес.';
+  }
+
+  if (errorLower.includes('duplicate key') || errorLower.includes('already exists')) {
+    return 'Бул маалымат мурунтан эле бар.';
+  }
+
+  if (errorLower.includes('not null') || errorLower.includes('cannot be null')) {
+    return 'Милдеттүү талааларды толтуруңуз.';
+  }
+
+  // Аутентификация каталары
+  if (errorLower.includes('unauthorized') || errorLower.includes('not authenticated')) {
+    return 'Кирүү керек. Кайра кириңиз.';
+  }
+
+  if (errorLower.includes('forbidden') || errorLower.includes('permission denied')) {
+    return 'Бул аракетке уруксатыңыз жок.';
+  }
+
+  // Файл каталары
+  if (errorLower.includes('payload too large') || errorLower.includes('file too large')) {
+    return 'Файл өтө чоң (максимум 50MB).';
+  }
+
+  if (errorLower.includes('invalid file type')) {
+    return 'Файл түрү колдоого алынбайт.';
+  }
+
+  // Тармак каталары
+  if (errorLower.includes('network') || errorLower.includes('fetch failed')) {
+    return 'Тармак катасы. Интернет байланышын текшериңиз.';
+  }
+
+  if (errorLower.includes('timeout')) {
+    return 'Өтө көп убакыт кетти. Кайра аракет кылыңыз.';
+  }
+
+  // Валидация каталары
+  if (errorLower.includes('invalid') || errorLower.includes('validation')) {
+    return 'Маалымат туура эмес форматта.';
+  }
+
+  if (errorLower.includes('required')) {
+    return 'Милдеттүү талааларды толтуруңуз.';
+  }
+
+  // Жалпы катаар - оригиналды көрсөтүү
+  if (error.includes('Error') || error.includes('error')) {
+    return `Ката кетти: ${error}`;
+  }
+
+  return error;
+};
+
 export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -73,9 +147,9 @@ export default function NewProductPage() {
         ...prev,
         images: [...prev.images, ...urls.filter(Boolean)],
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading images:', error);
-      setError('Сүрөт жүктөөдө ката кетти');
+      setError(translateError(error?.message || 'Сүрөт жүктөөдө ката кетти'));
     } finally {
       setUploadingImages(false);
     }
@@ -197,7 +271,7 @@ export default function NewProductPage() {
 
       router.push('/seller/products');
     } catch (err: any) {
-      setError(err.message);
+      setError(translateError(err.message));
     } finally {
       setLoading(false);
     }

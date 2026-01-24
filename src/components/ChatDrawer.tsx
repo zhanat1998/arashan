@@ -91,7 +91,12 @@ export default function ChatDrawer() {
   const drawerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
   const supabase = getSupabaseClient();
+
+  // Мобилдик клавиатура үчүн offset
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   // Drawer ачылганда анимация
   useEffect(() => {
@@ -103,6 +108,49 @@ export default function ChatDrawer() {
       });
     }
   }, [isDrawerOpen, fetchConversations]);
+
+  // Мобилдик клавиатура ачылганда input'ту жогору көтөрүү (10px клавиатурадан)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updatePosition = () => {
+      // Экран бийиктиги менен viewport бийиктигинин айырмасы = клавиатура бийиктиги
+      const keyboardHeight = window.innerHeight - viewport.height;
+
+      if (keyboardHeight > 100) {
+        // Клавиатура ачылды
+        setKeyboardOffset(keyboardHeight);
+        setIsKeyboardOpen(true);
+
+        // Body scroll'ду өчүрүү
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+      } else {
+        // Клавиатура жабылды
+        setKeyboardOffset(0);
+        setIsKeyboardOpen(false);
+
+        // Body scroll'ду кайра иштетүү
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+      }
+    };
+
+    viewport.addEventListener('resize', updatePosition);
+
+    return () => {
+      viewport.removeEventListener('resize', updatePosition);
+      // Cleanup body styles
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    };
+  }, []);
 
   // currentConversation бар болсо list'ди көрсөтпөө
   useEffect(() => {
@@ -560,13 +608,17 @@ export default function ChatDrawer() {
 
           <div
             ref={drawerRef}
-            className={`fixed bottom-36 right-4 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[75vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+            className={`fixed z-50 bg-white shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+              isKeyboardOpen
+                ? 'inset-0 rounded-none'
+                : 'bottom-36 right-4 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[75vh] rounded-3xl'
+            } ${
               isAnimating
                 ? 'opacity-100 translate-y-0 scale-100'
                 : 'opacity-0 translate-y-4 scale-95'
             }`}
             style={{
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)'
+              boxShadow: isKeyboardOpen ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)'
             }}
           >
             {/* Header */}
@@ -731,7 +783,13 @@ export default function ChatDrawer() {
               ) : (
                 /* Messages View */
                 <div className="h-full flex flex-col">
-                  <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+                  <div
+                    ref={messagesContainerRef}
+                    className="flex-1 overflow-y-auto p-4 space-y-3"
+                    style={{
+                      paddingBottom: isKeyboardOpen ? '100px' : undefined,
+                    }}
+                  >
                     {loading ? (
                       /* Message Skeletons */
                       <div className="space-y-3">
@@ -1006,8 +1064,16 @@ export default function ChatDrawer() {
                     </>
                   )}
 
-                  {/* Input Area */}
-                  <div className="bg-white border-t border-gray-100 p-3">
+                  {/* Input Area - клавиатура ачылганда 10px жогорураак турат */}
+                  <div
+                    ref={inputContainerRef}
+                    className={`bg-white border-t border-gray-100 p-3 transition-all duration-150 ${
+                      isKeyboardOpen ? 'fixed left-0 right-0 z-[60]' : ''
+                    }`}
+                    style={{
+                      bottom: isKeyboardOpen ? `${keyboardOffset + 10}px` : undefined,
+                    }}
+                  >
                     {/* Reply Preview Bar */}
                     {replyingTo && (
                       <div className="mb-2 flex items-center gap-2 p-2 bg-gray-50 rounded-xl animate-in slide-in-from-bottom-2 duration-200">
