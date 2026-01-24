@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 import {
   checkRateLimit,
   clearRateLimit,
@@ -13,6 +13,9 @@ import {
 // POST /api/auth/login - Коопсуз логин
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request);
+
+  // Response object - cookies коюу үчүн
+  let response = NextResponse.json({ success: true });
 
   try {
     const body = await request.json();
@@ -53,8 +56,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3. Supabase менен логин
-    const supabase = await createServerSupabaseClient();
+    // 3. Supabase client - cookies response'го коюлат
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, {
+                ...options,
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                httpOnly: true,
+                path: '/',
+              });
+            });
+          },
+        },
+      }
+    );
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: validation.sanitized.email || '',
@@ -102,8 +126,8 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', data.user.id);
 
-    // 7. Коопсуз жооп
-    return NextResponse.json({
+    // 7. Коопсуз жооп - cookies менен кайтаруу
+    const finalResponse = NextResponse.json({
       user: {
         id: data.user.id,
         email: data.user.email,
@@ -122,6 +146,18 @@ export async function POST(request: NextRequest) {
         'X-Frame-Options': 'DENY'
       }
     });
+
+    // Supabase cookies'ти акыркы response'го көчүрүү
+    response.cookies.getAll().forEach(cookie => {
+      finalResponse.cookies.set(cookie.name, cookie.value, {
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        path: '/',
+      });
+    });
+
+    return finalResponse;
 
   } catch (err: any) {
     console.error('Login error:', err);
