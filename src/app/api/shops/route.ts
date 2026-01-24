@@ -97,5 +97,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Update user role to seller
+  await supabase
+    .from('users')
+    .update({ role: 'seller' })
+    .eq('id', user.id);
+
   return NextResponse.json(data, { status: 201 });
 }

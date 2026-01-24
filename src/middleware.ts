@@ -87,8 +87,8 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Seller үчүн текшерүү
-    if (pathname.startsWith('/seller')) {
+    // Seller үчүн текшерүү (shop/create баракчасын кошпогондо)
+    if (pathname.startsWith('/seller') && !pathname.startsWith('/seller/shop/create')) {
       const { data: user } = await supabase
         .from('users')
         .select('role')
