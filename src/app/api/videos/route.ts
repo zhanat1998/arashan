@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
       shop:shops(id, name, logo),
       product:products(id, title, images, price)
     `, { count: 'exact' })
-    .eq('is_active', true)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 const S3 = new S3Client({
   region: 'auto',
@@ -12,6 +13,13 @@ const S3 = new S3Client({
 
 export async function POST(request: NextRequest) {
   try {
+    // Check auth
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Кирүү керек' }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const folder = formData.get('folder') as string || 'uploads';

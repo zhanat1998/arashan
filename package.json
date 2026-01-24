@@ -7,8 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:ai": "npx tsx scripts/ai-tester.ts",
-    "test:security": "npx tsx scripts/security-tester.ts"
+    "test": "npx playwright test",
+    "test:pages": "npx playwright test tests/pages.spec.ts",
+    "test:security": "npx playwright test tests/security.spec.ts",
+    "test:api": "npx playwright test tests/api.spec.ts",
+    "test:auth": "npx playwright test tests/auth.spec.ts",
+    "test:seller": "npx playwright test tests/seller.spec.ts",
+    "test:all": "npx playwright test --reporter=html",
+    "test:ui": "npx playwright test --ui",
+    "test:headed": "npx playwright test --headed"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.971.0",

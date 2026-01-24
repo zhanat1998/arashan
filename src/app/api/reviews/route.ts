@@ -19,15 +19,14 @@ export async function GET(request: NextRequest) {
     .from('reviews')
     .select(`
       *,
-      user:users(id, name, avatar),
+      user:users(id, full_name, avatar_url),
       replies:review_replies(
         id,
         content,
         created_at,
         shop:shops(id, name, logo)
       )
-    `, { count: 'exact' })
-    .eq('is_visible', true);
+    `, { count: 'exact' });
 
   // Фильтрлөө
   if (productId) {
@@ -199,7 +198,7 @@ export async function POST(request: NextRequest) {
     })
     .select(`
       *,
-      user:users(id, name, avatar)
+      user:users(id, full_name, avatar_url)
     `)
     .single();
 

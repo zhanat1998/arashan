@@ -14,8 +14,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('shops')
-    .select('*', { count: 'exact' })
-    .eq('is_active', true);
+    .select('*', { count: 'exact' });
 
   if (search) {
     query = query.ilike('name', `%${search}%`);
