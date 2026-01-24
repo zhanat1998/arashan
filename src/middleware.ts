@@ -24,7 +24,12 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            response.cookies.set(name, value, {
+              ...options,
+              sameSite: 'lax',
+              secure: process.env.NODE_ENV === 'production',
+              path: '/',
+            });
           });
         },
       },
@@ -32,7 +37,12 @@ export async function middleware(request: NextRequest) {
   );
 
   // Session'ду refresh кылуу - бул cookies'ти жаңылайт
-  await supabase.auth.getUser();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+
+  // Debug log (Vercel logs'то көрүнөт)
+  if (pathname === '/') {
+    console.log('Middleware - User:', authUser?.id || 'not logged in');
+  }
 
   // ============================================
   // 1. КООПСУЗДУК HEADERS
@@ -73,10 +83,8 @@ export async function middleware(request: NextRequest) {
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
 
   if (isProtectedPath) {
-    // Session текшерүү (жогоруда түзүлгөн supabase client колдонуу)
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    // Жогоруда алынган user колдонуу
+    if (!authUser) {
       // Логинге багыттоо
       const loginUrl = new URL('/auth/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
@@ -88,7 +96,7 @@ export async function middleware(request: NextRequest) {
       const { data: profile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single();
 
       if (!profile || profile.role !== 'admin') {
@@ -102,7 +110,7 @@ export async function middleware(request: NextRequest) {
       const { data: profile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single();
 
       if (!profile || (profile.role !== 'seller' && profile.role !== 'admin')) {
