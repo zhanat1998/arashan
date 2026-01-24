@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
-import type { User, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 interface UserProfile {
   id: string;
@@ -34,10 +34,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
 
-  // Create supabase client once
-  const supabase = useMemo(() => createBrowserClient(
+  // Create supabase client once (localStorage менен session сакталат)
+  const supabase = useMemo(() => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: true,
+        storageKey: 'supabase-auth',
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      }
+    }
   ), []);
 
   // Fetch user profile
@@ -62,12 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔄 Checking session on page load...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('📦 Session result:', session ? `Found: ${session.user?.email}` : 'No session', error);
 
         if (mounted) {
           if (session?.user) {
+            console.log('✅ User found, setting state');
             setUser(session.user);
             await fetchProfile(session.user.id);
+          } else {
+            console.log('⚠️ No session found');
           }
           setLoading(false);
           setIsReady(true);
@@ -111,39 +123,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔐 Login attempt:', email);
 
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include',
+      // Supabase signInWithPassword түз колдонуу - session автоматтык сакталат
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await response.json();
-      console.log('📦 API response:', data);
-
-      if (!response.ok) {
-        console.error('❌ Login failed:', data.error);
-        throw new Error(data.error || 'Кирүү катасы');
+      if (error) {
+        console.error('❌ Login failed:', error.message);
+        throw new Error(error.message === 'Invalid login credentials'
+          ? 'Email же сырсөз туура эмес'
+          : error.message);
       }
 
-      // Session API'ден кайткан маалыматты колдонуу
-      // setSession кыймылсыз түз state орнотуу
-      console.log('✅ Setting user state directly from API response');
-
-      // User объектин түзүү
-      const userObj = {
-        id: data.user.id,
-        email: data.user.email,
-        phone: data.user.phone || '',
-        app_metadata: {},
-        user_metadata: {},
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-      } as any;
-
-      setUser(userObj);
-      setProfile(data.profile);
-      console.log('✅ User logged in:', data.user.email);
+      if (data.user) {
+        console.log('✅ Logged in:', data.user.email);
+        setUser(data.user);
+        await fetchProfile(data.user.id);
+      }
     } finally {
       setLoading(false);
     }
