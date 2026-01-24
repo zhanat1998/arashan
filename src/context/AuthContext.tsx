@@ -109,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
+      console.log('🔐 Login attempt:', email);
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,29 +119,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await response.json();
+      console.log('📦 API response:', data);
 
       if (!response.ok) {
+        console.error('❌ Login failed:', data.error);
         throw new Error(data.error || 'Кирүү катасы');
       }
 
-      // Browser Supabase client'ке session орнотуу
-      if (data.session?.access_token && data.session?.refresh_token) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-      }
+      // Session API'ден кайткан маалыматты колдонуу
+      // setSession кыймылсыз түз state орнотуу
+      console.log('✅ Setting user state directly from API response');
 
-      // Session орнотулгандан кийин user алуу
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      // User объектин түзүү
+      const userObj = {
+        id: data.user.id,
+        email: data.user.email,
+        phone: data.user.phone || '',
+        app_metadata: {},
+        user_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      } as any;
 
-      if (authUser) {
-        setUser(authUser);
-        await fetchProfile(authUser.id);
-      } else {
-        setUser(data.user);
-        setProfile(data.profile);
-      }
+      setUser(userObj);
+      setProfile(data.profile);
+      console.log('✅ User logged in:', data.user.email);
     } finally {
       setLoading(false);
     }

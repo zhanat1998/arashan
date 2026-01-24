@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signInWithGoogle, isReady, refreshUser } = useAuth();
+  const { signIn: authSignIn, signInWithGoogle, isReady, refreshUser } = useAuth();
 
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
@@ -37,51 +37,14 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Коопсуз API колдонуу
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      // AuthContext'тин signIn колдонуу - session туура орнотулат
+      await authSignIn(email, password);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        // Катаны туура алуу
-        let errorMessage = 'Кирүүдө ката кетти';
-
-        if (data.error) {
-          if (typeof data.error === 'string') {
-            errorMessage = data.error;
-          } else if (typeof data.error === 'object') {
-            // Объект болсо биринчи катаны алуу
-            const firstError = Object.values(data.error)[0];
-            errorMessage = typeof firstError === 'string' ? firstError : 'Кирүүдө ката кетти';
-          }
-        }
-
-        // Rate limit кетсе
-        if (res.status === 429) {
-          setError(errorMessage);
-          return;
-        }
-
-        // Калган аракеттерди көрсөтүү
-        if (data.attemptsRemaining !== undefined) {
-          setAttemptsRemaining(data.attemptsRemaining);
-        }
-
-        setError(errorMessage);
-        return;
-      }
-
-      // Ийгиликтүү - колдонуучуну жаңыртуу
-      if (refreshUser) {
-        await refreshUser();
-      }
-
+      // Ийгиликтүү болсо гана redirect
+      console.log('✅ Login successful, redirecting...');
       router.push('/');
     } catch (err: any) {
+      console.error('❌ Login error:', err);
       setError(err.message || 'Кирүүдө ката кетти');
     } finally {
       setLoading(false);
