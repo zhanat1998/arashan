@@ -60,6 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    // Fallback timeout - 3 секунддан кийин баары бир даяр болсун
+    const fallbackTimer = setTimeout(() => {
+      if (mounted && !isReady) {
+        console.log('⏱️ Auth timeout - setting ready');
+        setLoading(false);
+        setIsReady(true);
+      }
+    }, 3000);
+
     const initAuth = async () => {
       try {
         console.log('🔄 Checking session on page load...');
@@ -70,7 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (session?.user) {
             console.log('✅ User found, setting state');
             setUser(session.user);
-            await fetchProfile(session.user.id);
+            // Profile fetch параллель - күтпөйбүз
+            fetchProfile(session.user.id).catch(console.error);
           } else {
             console.log('⚠️ No session found');
           }
@@ -92,10 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
+        console.log('🔔 Auth state changed:', event, session?.user?.email);
 
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          fetchProfile(session.user.id).catch(console.error);
         } else {
           setUser(null);
           setProfile(null);
@@ -107,9 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
-  }, [supabase, fetchProfile]);
+  }, [supabase, fetchProfile, isReady]);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
