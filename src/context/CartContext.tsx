@@ -12,14 +12,15 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[];
   addToCart: (product: Product, quantity?: number, color?: string) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeFromCart: (productId: string, selectedColor?: string) => void;
+  updateQuantity: (productId: string, quantity: number, selectedColor?: string) => void;
   clearCart: () => void;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   totalItems: number;
   totalPrice: number;
   totalDiscount: number;
+  isHydrated: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -55,34 +56,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
         item => item.product.id === product.id && item.selectedColor === color
       );
 
+      let newItems: CartItem[];
       if (existingItem) {
-        return prevItems.map(item =>
+        newItems = prevItems.map(item =>
           item.product.id === product.id && item.selectedColor === color
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
+      } else {
+        newItems = [...prevItems, { product, quantity, selectedColor: color }];
       }
 
-      return [...prevItems, { product, quantity, selectedColor: color }];
+      // Дароо localStorage'ду жаңыртуу (router.push үчүн)
+      localStorage.setItem('pinshop-cart', JSON.stringify(newItems));
+      return newItems;
     });
 
     // Open cart drawer when item is added
     setIsCartOpen(true);
   };
 
-  const removeFromCart = (productId: string) => {
-    setItems(prevItems => prevItems.filter(item => item.product.id !== productId));
+  const removeFromCart = (productId: string, selectedColor?: string) => {
+    setItems(prevItems => prevItems.filter(
+      item => !(item.product.id === productId && item.selectedColor === selectedColor)
+    ));
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (productId: string, quantity: number, selectedColor?: string) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, selectedColor);
       return;
     }
 
     setItems(prevItems =>
       prevItems.map(item =>
-        item.product.id === productId ? { ...item, quantity } : item
+        item.product.id === productId && item.selectedColor === selectedColor
+          ? { ...item, quantity }
+          : item
       )
     );
   };
@@ -116,6 +126,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         totalItems,
         totalPrice,
         totalDiscount,
+        isHydrated,
       }}
     >
       {children}

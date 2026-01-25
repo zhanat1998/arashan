@@ -21,11 +21,13 @@ interface FormData {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const { items, totalPrice, totalDiscount, clearCart } = useCart();
+  const { user, profile } = useAuth();
+  const { items, totalPrice, totalDiscount, clearCart, isHydrated } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [userCoins, setUserCoins] = useState(0);
   const [error, setError] = useState('');
+
+  // Get coins from profile
+  const userCoins = profile?.coins ?? 0;
   const [formData, setFormData] = useState<FormData>({
     name: '',
     phone: '',
@@ -37,20 +39,6 @@ export default function CheckoutPage() {
     deliveryMethod: 'courier',
     paymentMethod: 'mbank',
   });
-
-  // Fetch user coins
-  useEffect(() => {
-    if (user) {
-      fetch('/api/user/profile')
-        .then(res => res.json())
-        .then(data => {
-          if (data.user?.coins) {
-            setUserCoins(data.user.coins);
-          }
-        })
-        .catch(console.error);
-    }
-  }, [user]);
 
   const formatPrice = (price: number) => price.toLocaleString('ru-RU');
 
@@ -100,12 +88,17 @@ export default function CheckoutPage() {
         throw new Error(orderData.error || 'Буйрутма түзүүдө ката');
       }
 
-      // 2. Create payment
+      // 2. Create payment (API returns orders array)
+      const orderId = orderData.orders?.[0]?.id;
+      if (!orderId) {
+        throw new Error('Буйрутма түзүлгөн жок');
+      }
+
       const paymentResponse = await fetch('/api/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: orderData.order.id,
+          orderId: orderId,
           method: formData.paymentMethod,
           returnUrl: `${window.location.origin}/checkout/success`,
         }),
@@ -118,13 +111,15 @@ export default function CheckoutPage() {
       }
 
       // 3. Handle payment result
-      if (paymentData.success) {
+      if (paymentData.success && paymentData.redirectUrl) {
         // Balance or cash payment - completed instantly
         clearCart();
         router.push(paymentData.redirectUrl);
-      } else if (paymentData.paymentUrl) {
-        // Redirect to payment page with QR/instructions
+      } else if (paymentData.paymentUrl || paymentData.paymentId) {
+        // Redirect to payment page with QR/instructions (mbank, elsom, odengi)
         router.push(`/checkout/pay?payment=${paymentData.paymentId}&provider=${formData.paymentMethod}`);
+      } else {
+        throw new Error('Төлөм жообу туура эмес');
       }
     } catch (err: any) {
       setError(err.message);
@@ -150,6 +145,18 @@ export default function CheckoutPage() {
           >
             Кирүү
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Корзина жүктөлгөнчө күтүү
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-[var(--pdd-red)] rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">Жүктөлүүдө...</p>
         </div>
       </div>
     );
@@ -523,8 +530,8 @@ export default function CheckoutPage() {
 
               {/* Items */}
               <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
-                {items.map((item) => (
-                  <div key={`${item.product.id}-${item.selectedColor}`} className="flex gap-3">
+                {items.map((item, index) => (
+                  <div key={`${item.product.id}-${item.selectedColor || 'default'}-${index}`} className="flex gap-3">
                     <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
                       <Image
                         src={item.product.images[0]}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-// GET /api/seller/orders - Get seller's orders
+// GET /api/seller/orders - Get seller's orders (or all orders for MVP)
 export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
   const { searchParams } = new URL(request.url);
@@ -12,16 +12,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Кирүү керек' }, { status: 401 });
   }
 
-  // Get user's shop
+  // Get user's shop (optional for MVP)
   const { data: shop } = await supabase
     .from('shops')
     .select('id')
     .eq('owner_id', user.id)
     .single();
-
-  if (!shop) {
-    return NextResponse.json({ error: 'Дүкөн табылган жок' }, { status: 404 });
-  }
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -38,8 +34,13 @@ export async function GET(request: NextRequest) {
         *,
         product:products(id, title, images)
       )
-    `, { count: 'exact' })
-    .eq('shop_id', shop.id);
+    `, { count: 'exact' });
+
+  // If user has a shop, show shop orders; otherwise show all orders (MVP mode)
+  if (shop) {
+    query = query.eq('shop_id', shop.id);
+  }
+  // For MVP: if no shop, show all orders (admin-like view)
 
   if (status && status !== 'all') {
     query = query.eq('status', status);

@@ -298,6 +298,27 @@ export default function OrderDetailPage() {
       {/* Map Section for shipped orders */}
       {order.status === 'shipped' && (
         <div className="bg-white mt-2">
+          {/* Tracking Link Banner */}
+          <Link
+            href={`/orders/${orderId}/tracking`}
+            className="block bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-white"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <span className="text-xl">📍</span>
+                </div>
+                <div>
+                  <p className="font-medium">Жеткирүүнү көзөмөлдөө</p>
+                  <p className="text-sm text-white/80">Курьердин жайгашуусун карта менен көрүү</p>
+                </div>
+              </div>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </Link>
+
           <div className="relative h-40 bg-gradient-to-br from-green-100 to-blue-100 overflow-hidden">
             {/* Map background pattern */}
             <div className="absolute inset-0 opacity-30">

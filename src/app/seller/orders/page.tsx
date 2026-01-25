@@ -5,11 +5,12 @@ import Image from 'next/image';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: 'Күтүүдө', color: 'bg-yellow-100 text-yellow-700' },
-  confirmed: { label: 'Ырасталды', color: 'bg-blue-100 text-blue-700' },
-  processing: { label: 'Даярдалууда', color: 'bg-indigo-100 text-indigo-700' },
+  awaiting_payment: { label: 'Төлөм күтүүдө', color: 'bg-orange-100 text-orange-700' },
+  paid: { label: 'Төлөндү', color: 'bg-blue-100 text-blue-700' },
   shipped: { label: 'Жөнөтүлдү', color: 'bg-purple-100 text-purple-700' },
   delivered: { label: 'Жеткирилди', color: 'bg-green-100 text-green-700' },
   cancelled: { label: 'Жокко чыгарылды', color: 'bg-red-100 text-red-700' },
+  refunded: { label: 'Кайтарылды', color: 'bg-gray-100 text-gray-700' },
 };
 
 export default function SellerOrdersPage() {
@@ -57,19 +58,30 @@ export default function SellerOrdersPage() {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setUpdatingOrder(orderId);
     try {
-      const res = await fetch('/api/seller/orders', {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, status: newStatus }),
+        body: JSON.stringify({ status: newStatus }),
       });
 
       if (res.ok) {
-        setOrders(orders.map(o =>
-          o.id === orderId ? { ...o, status: newStatus } : o
-        ));
+        // Update local state with new status and timestamps
+        setOrders(orders.map(o => {
+          if (o.id === orderId) {
+            const updated = { ...o, status: newStatus };
+            if (newStatus === 'shipped') updated.shipped_at = new Date().toISOString();
+            if (newStatus === 'delivered') updated.delivered_at = new Date().toISOString();
+            return updated;
+          }
+          return o;
+        }));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Ката кетти');
       }
     } catch (error) {
       console.error('Error updating order:', error);
+      alert('Статусту өзгөртүүдө ката');
     } finally {
       setUpdatingOrder(null);
     }
@@ -77,9 +89,9 @@ export default function SellerOrdersPage() {
 
   const getNextStatus = (currentStatus: string): string | null => {
     const flow: Record<string, string> = {
-      pending: 'confirmed',
-      confirmed: 'processing',
-      processing: 'shipped',
+      pending: 'paid',
+      awaiting_payment: 'paid',
+      paid: 'shipped',
       shipped: 'delivered',
     };
     return flow[currentStatus] || null;
@@ -99,8 +111,7 @@ export default function SellerOrdersPage() {
           {[
             { value: 'all', label: 'Баары' },
             { value: 'pending', label: 'Күтүүдө' },
-            { value: 'confirmed', label: 'Ырасталды' },
-            { value: 'processing', label: 'Даярдалууда' },
+            { value: 'paid', label: 'Төлөндү' },
             { value: 'shipped', label: 'Жөнөтүлдү' },
             { value: 'delivered', label: 'Жеткирилди' },
             { value: 'cancelled', label: 'Жокко чыгарылды' },
@@ -191,7 +202,9 @@ export default function SellerOrdersPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    {order.shipping_address}
+                    {typeof order.shipping_address === 'string'
+                      ? order.shipping_address
+                      : `${order.shipping_address.city || ''}, ${order.shipping_address.address || ''} ${order.shipping_address.apartment || ''}`.trim()}
                   </p>
                 )}
               </div>
@@ -246,15 +259,15 @@ export default function SellerOrdersPage() {
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <>
-                          {order.status === 'pending' && 'Ырастоо'}
-                          {order.status === 'confirmed' && 'Даярдоо'}
-                          {order.status === 'processing' && 'Жөнөтүү'}
+                          {order.status === 'pending' && 'Төлөндү деп белгилөө'}
+                          {order.status === 'awaiting_payment' && 'Төлөндү деп белгилөө'}
+                          {order.status === 'paid' && 'Жөнөтүү'}
                           {order.status === 'shipped' && 'Жеткирилди'}
                         </>
                       )}
                     </button>
                   )}
-                  {order.status === 'pending' && (
+                  {(order.status === 'pending' || order.status === 'awaiting_payment') && (
                     <button
                       onClick={() => updateOrderStatus(order.id, 'cancelled')}
                       disabled={updatingOrder === order.id}
