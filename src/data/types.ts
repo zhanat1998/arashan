@@ -5,6 +5,7 @@ export interface Product {
   originalPrice?: number;
   images: string[];
   videoUrl?: string;
+  videos?: string[];
 
   // Product details
   brand?: string;

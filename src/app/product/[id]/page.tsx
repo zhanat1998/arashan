@@ -189,7 +189,7 @@ export default function ProductDetailPage() {
       <div className="max-w-7xl mx-auto md:px-4 md:py-6 md:grid md:grid-cols-2 md:gap-6">
         {/* Gallery */}
         <div className="bg-white md:rounded-xl md:overflow-hidden md:sticky md:top-20 md:h-fit">
-          <ProductGallery images={product.images} videoUrl={product.videoUrl} title={product.title} />
+          <ProductGallery images={product.images} videoUrl={product.videoUrl} videos={product.videos} title={product.title} />
         </div>
 
         {/* Product Info Column */}

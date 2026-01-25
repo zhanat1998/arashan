@@ -6,15 +6,23 @@ import Image from 'next/image';
 interface ProductGalleryProps {
   images: string[];
   videoUrl?: string;
+  videos?: string[];
   title: string;
 }
 
-export default function ProductGallery({ images, videoUrl, title }: ProductGalleryProps) {
+export default function ProductGallery({ images, videoUrl, videos = [], title }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const allMedia = videoUrl ? [{ type: 'video', url: videoUrl }, ...images.map(url => ({ type: 'image', url }))] : images.map(url => ({ type: 'image', url }));
+  // Combine all videos (legacy videoUrl + new videos array)
+  const allVideos = [...(videoUrl ? [videoUrl] : []), ...videos];
+
+  // Build media array: videos first, then images
+  const allMedia = [
+    ...allVideos.map(url => ({ type: 'video' as const, url })),
+    ...images.map(url => ({ type: 'image' as const, url }))
+  ];
   const currentMedia = allMedia[activeIndex];
 
   const handleVideoToggle = () => {

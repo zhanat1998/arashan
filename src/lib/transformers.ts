@@ -7,6 +7,7 @@ interface ApiProduct {
   original_price?: number;
   images: string[];
   video_url?: string;
+  videos?: string[];
   brand?: string;
   stock: number;
   sold_count: number;
@@ -112,6 +113,7 @@ export function transformProduct(apiProduct: ApiProduct): Product {
     originalPrice: apiProduct.original_price,
     images: apiProduct.images || [],
     videoUrl: apiProduct.video_url,
+    videos: apiProduct.videos || [],
     brand: apiProduct.brand,
     stock: apiProduct.stock,
     soldCount: apiProduct.sold_count || 0,
