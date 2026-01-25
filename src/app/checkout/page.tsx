@@ -75,12 +75,12 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: items.map(item => ({
-            product_id: item.product.id,
+            productId: item.product.id,
             quantity: item.quantity,
             price: item.product.price,
-            selected_color: item.selectedColor,
+            color: item.selectedColor,
           })),
-          shipping_address: {
+          shippingAddress: {
             name: formData.name,
             phone: formData.phone,
             email: formData.email,
@@ -88,8 +88,8 @@ export default function CheckoutPage() {
             address: formData.address,
             apartment: formData.apartment,
           },
-          delivery_method: formData.deliveryMethod,
-          delivery_price: deliveryPrice,
+          deliveryMethod: formData.deliveryMethod,
+          deliveryPrice: deliveryPrice,
           comment: formData.comment,
         }),
       });
