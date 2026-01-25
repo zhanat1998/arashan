@@ -82,8 +82,8 @@ export default function DeliveryTrackingPage() {
     progress: 0,
   });
 
-  // Жеткирүү дареги (mock)
-  const [destination] = useState({
+  // Жеткирүү дареги
+  const [destination, setDestination] = useState({
     lat: BISHKEK_CENTER.lat + 0.015,
     lng: BISHKEK_CENTER.lng + 0.02,
     address: 'Бишкек, Токтогул көч. 125, батир 45',
@@ -133,6 +133,18 @@ export default function DeliveryTrackingPage() {
       if (response.ok) {
         const data = await response.json();
         setOrder(data.order);
+
+        // Чыныгы жеткирүү дарегин коюу
+        if (data.order?.shipping_address) {
+          const addr = data.order.shipping_address;
+          const addressStr = typeof addr === 'string'
+            ? addr
+            : `${addr.city || ''}, ${addr.address || ''} ${addr.apartment || ''}`.trim();
+          setDestination(prev => ({
+            ...prev,
+            address: addressStr || prev.address
+          }));
+        }
       }
     } catch (error) {
       console.error('Error fetching order:', error);

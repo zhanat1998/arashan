@@ -43,7 +43,7 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({ order: data });
 }
 
 // PATCH /api/orders/[id] - Update order status
