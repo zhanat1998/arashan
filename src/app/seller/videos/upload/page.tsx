@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 
 export default function UploadVideoPage() {
   const router = useRouter();
@@ -52,9 +51,9 @@ export default function UploadVideoPage() {
       return;
     }
 
-    // Check file size (max 50MB - Supabase free tier limit)
-    if (file.size > 50 * 1024 * 1024) {
-      setError('Видео өлчөмү 50MB ашпаш керек (Supabase Free план чеги)');
+    // Check file size (max 100MB - Cloudflare R2)
+    if (file.size > 100 * 1024 * 1024) {
+      setError('Видео өлчөмү 100MB ашпаш керек');
       return;
     }
 
@@ -97,55 +96,37 @@ export default function UploadVideoPage() {
   const uploadVideo = async (): Promise<string> => {
     if (!videoFile) throw new Error('Видео файл жок');
 
-    const supabase = createClient();
-
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error('Кирүү керек');
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const extension = videoFile.name.split('.').pop();
-    const fileName = `${user.id}/${timestamp}-${randomString}.${extension}`;
-
-    // Simulate progress based on file size (estimate ~1MB/sec upload speed)
+    // Simulate progress based on file size
     const fileSizeMB = videoFile.size / (1024 * 1024);
-    const estimatedSeconds = Math.max(fileSizeMB / 1, 3); // At least 3 seconds
+    const estimatedSeconds = Math.max(fileSizeMB / 2, 3);
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
-        if (prev >= 90) {
-          return prev; // Stop at 90%, wait for actual completion
-        }
+        if (prev >= 90) return prev;
         return prev + Math.round(90 / estimatedSeconds);
       });
     }, 1000);
 
     try {
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('videos')
-        .upload(fileName, videoFile, {
-          contentType: videoFile.type,
-          upsert: false,
-        });
+      // Upload via API to Cloudflare R2
+      const formData = new FormData();
+      formData.append('file', videoFile);
+      formData.append('type', 'video');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
       clearInterval(progressInterval);
 
-      if (error) {
-        throw new Error(error.message || 'Видео жүктөөдө ката кетти');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Видео жүктөөдө ката кетти');
       }
 
       setUploadProgress(100);
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('videos')
-        .getPublicUrl(fileName);
-
-      return publicUrl;
+      return data.url;
     } catch (err) {
       clearInterval(progressInterval);
       throw err;
