@@ -26,7 +26,8 @@
     "ra-supabase": "^3.5.2",
     "react": "19.2.3",
     "react-admin": "^5.13.6",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-riyils": "^2.57.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
