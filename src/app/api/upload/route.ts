@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { uploadToR2, generateFileName } from '@/lib/r2';
 
+// Allow large file uploads (up to 150MB)
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 seconds timeout
+
 export async function POST(request: NextRequest) {
   try {
     // Check auth
@@ -31,11 +35,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Сүрөт файл керек' }, { status: 400 });
     }
 
-    // Check file size (100MB for video, 10MB for image)
-    const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+    // Check file size (500MB for video, 10MB for image)
+    const maxSize = isVideo ? 500 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json({
-        error: `Файл өтө чоң. Максимум: ${isVideo ? '100MB' : '10MB'}`
+        error: `Файл өтө чоң. Максимум: ${isVideo ? '500MB' : '10MB'}`
       }, { status: 400 });
     }
 

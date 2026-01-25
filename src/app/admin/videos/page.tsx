@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { videos } from '@/data/products';
+import { useReels } from '@/hooks/useReels';
 
 export default function AdminVideos() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { reels: videos, loading } = useReels({ limit: 100 });
 
   const filteredVideos = videos.filter(video =>
     video.product.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -123,10 +124,18 @@ export default function AdminVideos() {
         ))}
       </div>
 
-      {filteredVideos.length === 0 && (
+      {loading && (
+        <div className="text-center py-12">
+          <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">Видеолор жүктөлүүдө...</p>
+        </div>
+      )}
+
+      {!loading && filteredVideos.length === 0 && (
         <div className="text-center py-12">
           <span className="text-6xl">🎬</span>
           <p className="text-gray-500 mt-4">Видео табылган жок</p>
+          <p className="text-gray-400 text-sm mt-2">Продукт кошуп, видео жүктөңүз</p>
         </div>
       )}
     </div>

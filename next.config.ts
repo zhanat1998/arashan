@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Increase body size limit for file uploads
+  // Increase body size limit for file uploads (500MB)
   experimental: {
     serverActions: {
-      bodySizeLimit: '150mb',
+      bodySizeLimit: '500mb',
     },
+    proxyClientMaxBodySize: '500mb',
   },
 
   images: {

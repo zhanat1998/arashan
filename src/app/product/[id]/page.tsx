@@ -9,8 +9,8 @@ import VideoFeed from '@/components/VideoFeed';
 import ContactSellerButton from '@/components/ContactSellerButton';
 import ReviewsList from '@/components/ReviewsList';
 import ReviewForm from '@/components/ReviewForm';
-import { videos } from '@/data/products';
 import { useProduct, useProducts } from '@/hooks/useProducts';
+import { useReels } from '@/hooks/useReels';
 import { useCart } from '@/context/CartContext';
 
 export default function ProductDetailPage() {
@@ -93,14 +93,12 @@ export default function ProductDetailPage() {
     limit: 6
   });
 
-  const testVideos = [
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-  ];
-  const randomVideoUrl = testVideos[parseInt(productId) % testVideos.length];
+  // Fetch real product videos for VideoFeed
+  const { reels: videos } = useReels({ limit: 50 });
+
+  // Get product's actual video URL (first from videos array or legacy videoUrl)
+  const productVideoUrl = product?.videos?.[0] || product?.videoUrl || null;
+  const hasProductVideo = !!productVideoUrl;
 
   useEffect(() => {
     if (product) {
@@ -470,8 +468,8 @@ export default function ProductDetailPage() {
         </button>
       </div>
 
-      {/* Mini Video */}
-      {showMiniVideo && !showVideoFeed && (
+      {/* Mini Video - Only show if product has videos */}
+      {hasProductVideo && showMiniVideo && !showVideoFeed && (
         <div
           className="fixed z-50 select-none"
           style={{ left: `${videoPosition.x}px`, top: `${videoPosition.y}px`, cursor: isDragging ? 'grabbing' : 'grab' }}
@@ -482,7 +480,7 @@ export default function ProductDetailPage() {
             onTouchStart={handleTouchStart}
             onClick={() => !isDragging && setShowVideoFeed(true)}
           >
-            <video ref={miniVideoRef} src={randomVideoUrl} className="w-full h-full object-cover" loop muted playsInline autoPlay />
+            <video ref={miniVideoRef} src={productVideoUrl!} className="w-full h-full object-cover" loop muted playsInline autoPlay />
             <button
               onClick={(e) => { e.stopPropagation(); setShowMiniVideo(false); }}
               className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/50 rounded-full flex items-center justify-center text-white"
@@ -496,8 +494,8 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* Video Feed Modal */}
-      {showVideoFeed && (
+      {/* Video Feed Modal - Only show if there are real videos */}
+      {hasProductVideo && showVideoFeed && videos.length > 0 && (
         <VideoFeed videos={videos} onClose={() => setShowVideoFeed(false)} initialIndex={videoIndex} />
       )}
 

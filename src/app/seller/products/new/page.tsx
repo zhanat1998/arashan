@@ -93,6 +93,7 @@ export default function NewProductPage() {
     stock: '',
     category_id: '',
     images: [] as string[],
+    videos: [] as string[],
     is_group_buy: false,
     group_buy_price: '',
     group_buy_min: '',
@@ -102,6 +103,8 @@ export default function NewProductPage() {
     colors: [] as string[],
     sizes: [] as string[],
   });
+
+  const [uploadingVideos, setUploadingVideos] = useState(false);
 
   const [newColor, setNewColor] = useState('');
   const [newSize, setNewSize] = useState('');
@@ -159,6 +162,56 @@ export default function NewProductPage() {
     setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Check max 3 videos
+    if (formData.videos.length + files.length > 3) {
+      setError('Максимум 3 видео жүктөй аласыз');
+      return;
+    }
+
+    setUploadingVideos(true);
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', file);
+        formDataUpload.append('type', 'video');
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload,
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Видео жүктөөдө ката');
+        }
+        return data.url;
+      });
+
+      const urls = await Promise.all(uploadPromises);
+      setFormData((prev) => ({
+        ...prev,
+        videos: [...prev.videos, ...urls.filter(Boolean)],
+      }));
+    } catch (error: any) {
+      console.error('Error uploading videos:', error);
+      setError(translateError(error?.message || 'Видео жүктөөдө ката кетти'));
+    } finally {
+      setUploadingVideos(false);
+    }
+  };
+
+  const removeVideo = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      videos: prev.videos.filter((_, i) => i !== index),
     }));
   };
 
@@ -224,6 +277,8 @@ export default function NewProductPage() {
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock) || 0,
         images: formData.images,
+        videos: formData.videos,
+        video_url: formData.videos.length > 0 ? formData.videos[0] : null,
         is_active: true,
       };
 
@@ -297,7 +352,8 @@ export default function NewProductPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Images */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Сүрөттөр</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Сүрөттөр</h2>
+          <p className="text-sm text-gray-500 mb-4">Максимум 20 сүрөт жүктөй аласыз</p>
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
             {formData.images.map((url, index) => (
@@ -312,28 +368,87 @@ export default function NewProductPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
+                {index === 0 && (
+                  <span className="absolute bottom-1 left-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded">
+                    Башкы
+                  </span>
+                )}
               </div>
             ))}
 
-            <label className="aspect-square bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-red-300 hover:bg-red-50/50 transition-colors">
-              {uploadingImages ? (
-                <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            {formData.images.length < 20 && (
+              <label className="aspect-square bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-red-300 hover:bg-red-50/50 transition-colors">
+                {uploadingImages ? (
+                  <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="text-xs text-gray-400 mt-1">{formData.images.length}/20</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+        </div>
+
+        {/* Videos */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Видеолор</h2>
+          <p className="text-sm text-gray-500 mb-4">Максимум 3 видео жүктөй аласыз (500MB чейин)</p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {formData.videos.map((url, index) => (
+              <div key={index} className="relative aspect-video bg-gray-100 rounded-xl overflow-hidden group">
+                <video src={url} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeVideo(index)}
+                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  <span className="text-xs text-gray-400 mt-1">Кошуу</span>
-                </>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </label>
+                </button>
+                <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 text-white text-xs rounded flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                  Видео {index + 1}
+                </div>
+              </div>
+            ))}
+
+            {formData.videos.length < 3 && (
+              <label className="aspect-video bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-300 hover:bg-purple-50/50 transition-colors">
+                {uploadingVideos ? (
+                  <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm text-gray-400 mt-2">Видео кошуу</span>
+                    <span className="text-xs text-gray-400">{formData.videos.length}/3</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="video/*"
+                  multiple
+                  onChange={handleVideoUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         </div>
 

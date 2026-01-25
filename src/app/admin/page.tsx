@@ -1,9 +1,14 @@
-import { products, videos, shops } from '@/data/products';
+'use client';
+
+import { products, shops } from '@/data/products';
+import { useReels } from '@/hooks/useReels';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
+  const { reels } = useReels({ limit: 100 });
+
   const totalProducts = products.length;
-  const totalVideos = videos.length;
+  const totalVideos = reels.length; // Real videos from R2
   const totalSales = products.reduce((sum, p) => sum + p.soldCount, 0);
   const totalRevenue = products.reduce((sum, p) => sum + (p.price * p.soldCount), 0);
 

@@ -3,21 +3,32 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import CategoryBar from '@/components/CategoryBar';
 import ProductCard from '@/components/ProductCard';
 import VideoFeed from '@/components/VideoFeed';
 import VideoReelButton from '@/components/VideoReelButton';
 import { useProducts, useCategories } from '@/hooks/useProducts';
+import { useReels } from '@/hooks/useReels';
 import { useCart } from '@/context/CartContext';
-import { videos } from '@/data/products';
 
 export default function Home() {
+  const router = useRouter();
   const [showVideoFeed, setShowVideoFeed] = useState(false);
   const [initialVideoIndex, setInitialVideoIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState('1');
+  const [isDesktop, setIsDesktop] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const { totalItems, setIsCartOpen } = useCart();
+
+  // Check if desktop
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 768);
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
 
   // Use hooks for data fetching
   const { products, loading, hasMore, loadMore } = useProducts({
@@ -25,6 +36,8 @@ export default function Home() {
     limit: 20,
   });
   const { categories, loading: categoriesLoading } = useCategories();
+  // Fetch real product videos from R2 storage
+  const { reels: videos, loading: reelsLoading } = useReels({ limit: 50 });
 
   // Hot products (group buy or flash sale)
   const hotProducts = products.filter(item => item.isGroupBuy || item.isFlashSale).slice(0, 10);
@@ -33,6 +46,19 @@ export default function Home() {
     const videoIndex = videos.findIndex(v => v.productId === productId);
     if (videoIndex !== -1) {
       setInitialVideoIndex(videoIndex);
+      if (isDesktop) {
+        router.push('/reels');
+      } else {
+        setShowVideoFeed(true);
+      }
+    }
+  };
+
+  // Open reels - desktop goes to page, mobile shows modal
+  const handleOpenReels = () => {
+    if (isDesktop) {
+      router.push('/reels');
+    } else {
       setShowVideoFeed(true);
     }
   };
@@ -215,11 +241,13 @@ export default function Home() {
       </div>
       </div>{/* End Desktop Container */}
 
-      {/* Video Reel Button */}
-      <VideoReelButton onClick={() => setShowVideoFeed(true)} videoCount={videos.length} />
+      {/* Video Reel Button - only show if there are real videos */}
+      {videos.length > 0 && (
+        <VideoReelButton onClick={handleOpenReels} videoCount={videos.length} />
+      )}
 
-      {/* Video Feed */}
-      {showVideoFeed && (
+      {/* Video Feed Modal - only for mobile */}
+      {showVideoFeed && videos.length > 0 && !isDesktop && (
         <VideoFeed videos={videos} onClose={() => setShowVideoFeed(false)} initialIndex={initialVideoIndex} />
       )}
 
@@ -234,12 +262,21 @@ export default function Home() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" /></svg>
             <span className="text-[10px]">Категория</span>
           </Link>
-          <button onClick={() => setShowVideoFeed(true)} className="flex flex-col items-center gap-0.5 text-gray-500 relative">
-            <div className="w-10 h-10 -mt-5 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          {videos.length > 0 ? (
+            <button onClick={handleOpenReels} className="flex flex-col items-center gap-0.5 text-gray-500 relative">
+              <div className="w-10 h-10 -mt-5 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <span className="text-[10px]">Видео</span>
+            </button>
+          ) : (
+            <div className="flex flex-col items-center gap-0.5 text-gray-300 relative">
+              <div className="w-10 h-10 -mt-5 bg-gray-300 rounded-full flex items-center justify-center shadow-lg">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <span className="text-[10px]">Видео</span>
             </div>
-            <span className="text-[10px]">Видео</span>
-          </button>
+          )}
           <button onClick={() => setIsCartOpen(true)} className="flex flex-col items-center gap-0.5 text-gray-500 relative">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
             {totalItems > 0 && (
